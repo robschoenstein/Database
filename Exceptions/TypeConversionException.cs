@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Reflection;
 
-namespace Database
+namespace Database.Exceptions
 {
   [Serializable]
   public class TypeConversionException : Exception

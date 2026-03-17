@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Database.Entity
+namespace Database.Entity.Attributes
 {
   [AttributeUsage(AttributeTargets.Field)]
   public class StringValueAttribute : Attribute

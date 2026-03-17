@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Database
+namespace Database.Exceptions
 {
   /// <summary>
   /// Exception indicating that an attempt has been made to use an undefined

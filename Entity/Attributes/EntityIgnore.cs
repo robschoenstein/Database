@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Database.Entity
+namespace Database.Entity.Attributes
 {
   /// <summary>
   /// Ignores property when populating entities with data

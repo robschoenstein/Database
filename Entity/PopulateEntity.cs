@@ -8,6 +8,8 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Database.Entity.Attributes;
+using Database.Exceptions;
 
 namespace Database.Entity
 {

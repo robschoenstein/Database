@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Database.Exceptions;
+using Microsoft.Data.SqlClient;
 
 namespace Database
 {

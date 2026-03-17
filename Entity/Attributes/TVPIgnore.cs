@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
-namespace Database.Entity
+namespace Database.Entity.Attributes
 {
   [AttributeUsage(AttributeTargets.Property)]
   public class TVPIgnore : Attribute

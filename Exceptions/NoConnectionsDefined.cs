@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Database
+namespace Database.Exceptions
 {
   /// <summary>
   /// Exception indicating that the no connections have been defined.

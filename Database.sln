@@ -1,7 +1,7 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Database", "Database.csproj", "{1627EB37-5785-4560-8733-9A979034DA0A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Database", "Database.csproj", "{1627EB37-5785-4560-8733-9A979034DA0A}"
 EndProject
 Global
 	GlobalSection(TeamFoundationVersionControl) = preSolution

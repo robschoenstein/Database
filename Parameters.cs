@@ -11,6 +11,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Database.Entity;
+using Database.Entity.Attributes;
+using Microsoft.Data.SqlClient;
 
 namespace Database
 {

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Database
+namespace Database.Exceptions
 {
   [Serializable]
   public class PopulationException : Exception
