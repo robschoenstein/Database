@@ -8,12 +8,13 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Database.Cache;
 using Database.Entity.Attributes;
 using Database.Exceptions;
 
 namespace Database.Entity
 {
-  internal class PopulateEntity
+  internal static class PopulateEntity
   {
     /// <summary>
     /// Reads a <see cref="DataRow"/> into an existing entity.

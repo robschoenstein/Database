@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using Database.Connection;
 
 namespace Database.Entity
 {
@@ -155,7 +156,7 @@ namespace Database.Entity
       return PopulateEntity.ToEntities<T>(dataSet.Tables[tableIndex]);
     }
 
-    public static bool IsSqlConvertableType(this Type type)
+    internal static bool IsSqlConvertableType(this Type type)
     {
       return type.IsValueType ||
              type.IsPrimitive ||
@@ -169,6 +170,11 @@ namespace Database.Entity
                  typeof (Guid)
                }.Any(t => t == type)
              || Convert.GetTypeCode(type) != TypeCode.Object;
+    }
+
+    internal static bool ValidateConnectionProperties(this ConnectionProperties connectionProperties)
+    {
+      return connectionProperties != null && connectionProperties.IsValid();
     }
   }
 }

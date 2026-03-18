@@ -3,21 +3,20 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Database.Entity;
 using Database.Entity.Attributes;
 
-namespace Database
+namespace Database.Cache
 {
-  //TODO: Add support for ChildColumnMap
   internal class ObjectCache
   {
     private static ObjectCache _instance;
 
     public static ObjectCache Instance
     {
-      get { return _instance ?? (_instance = new ObjectCache()); }
+      get { return _instance ??= new ObjectCache(); }
     }
 
+    // ReSharper disable once MemberCanBePrivate.Global
     public ConcurrentDictionary<Type, ConcurrentBag<KeyValuePair<PropertyInfo, Attribute[]>>> Cache { get; set; }
 
     private ObjectCache()
@@ -42,9 +41,9 @@ namespace Database
 
     public bool ContainsEnumValueMap(PropertyInfo propertyInfo)
     {
-      return Cache.ContainsKey(propertyInfo.ReflectedType) && Cache[propertyInfo.ReflectedType]
+      return propertyInfo.ReflectedType != null && Cache.ContainsKey(propertyInfo.ReflectedType) && Cache[propertyInfo.ReflectedType]
         .Any(o => o.Key.Name == propertyInfo.Name &&
-        o.Value.Any(a => a is EnumValueMap));
+                  o.Value.Any(a => a is EnumValueMap));
     }
 
     public void AddCacheObject(Type type, PropertyInfo property, Attribute[] attributes)

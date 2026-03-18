@@ -2,10 +2,13 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
-using Database.Entity;
 
-namespace Database
+namespace Database.Entity
 {
+  /// <summary>
+  /// Inherit from this to create a custom entity collection
+  /// </summary>
+  /// <typeparam name="T"></typeparam>
   public abstract class EntityCollectionBase<T> : IList<T>
   {
     #region Properties
