@@ -17,6 +17,7 @@ namespace Database.Entity
     /// <returns>Populated entity.</returns>
     public static T ToEntity<T>(this DataRow dataRow)
     {
+      // ReSharper disable once RedundantAssignment
       var entity = default(T);
 
       try
@@ -160,6 +161,7 @@ namespace Database.Entity
     {
       return type.IsValueType ||
              type.IsPrimitive ||
+             // ReSharper disable once RedundantExplicitArrayCreation
              new Type[]
                {
                  typeof (String),

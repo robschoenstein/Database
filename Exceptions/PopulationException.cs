@@ -13,7 +13,7 @@ namespace Database.Exceptions
 
     public string PropertyName
     {
-      get { return _propertyName; ; }
+      get { return _propertyName; }
       set { _propertyName = value; }
     }
 

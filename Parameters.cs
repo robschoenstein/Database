@@ -376,7 +376,7 @@ namespace Database
                     //  a stored procedure or function.
                     var inputList = value.ToList();
 
-                    var dataDictionary = inputList.ToDictionary(data => "value", data => data.ToString());
+                    var dataDictionary = inputList.ToDictionary(_ => "value", data => data.ToString());
 
                     var json = JsonSerializer.Serialize(dataDictionary, new JsonSerializerOptions{ WriteIndented = true });
                     
@@ -551,6 +551,7 @@ namespace Database
         /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class.</param>
         /// <returns><c>true</c> if table valued parameter was created and added, <c>false</c> otherwise.</returns>
         // ReSharper disable once InconsistentNaming
+        // ReSharper disable once UnusedMember.Local
         private bool CreateComplexTVPFromExpando<T>(string parameterName, IList<T> value,
             string typeName = null, string connectionName = "default")
         {

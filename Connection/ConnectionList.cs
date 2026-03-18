@@ -30,8 +30,8 @@ namespace Database.Connection
         {
             get
             {
-                if (this._connections.ContainsKey((object)key))
-                    return (ConnectionProperties)this._connections[(object)key];
+                if (this._connections.ContainsKey(key))
+                    return (ConnectionProperties)this._connections[key];
                 else
                     throw new UnknownConnection("Unable to retrieve connection. The provided connection name '" + key +
                                                 "' does not exist.");
@@ -41,7 +41,7 @@ namespace Database.Connection
                 if (!this._connections.ContainsKey(key))
                     throw new UnknownConnection("Unable to set connection. The provided connection name '" + key +
                                                 "' does not exist.");
-                this._connections[(object)key] = value;
+                this._connections[key] = value;
             }
         }
 
@@ -52,9 +52,9 @@ namespace Database.Connection
         /// <param name="key"/><param name="value"/>
         public void Add(string key, ConnectionProperties value)
         {
-            if (this._connections.ContainsKey((object)key))
+            if (this._connections.ContainsKey(key))
                 throw new ConnectionAlreadyExists("The connection " + key + " already exists.");
-            this._connections.Add((object)key, (object)value);
+            this._connections.Add(key, value);
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Database.Connection
             if (key == "default")
                 throw new DefaultConnectionRemoval();
 
-            this._connections.Remove((object)key);
+            this._connections.Remove(key);
         }
 
         /// <summary>
