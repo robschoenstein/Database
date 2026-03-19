@@ -13,6 +13,7 @@ namespace Database
         //private static Environment _instance = null;
         private static readonly Lock Locker = new Lock();
         private static ConnectionList _connections;
+        private static bool _initialized = false;
 
         /// <summary>
         /// Gets the ConnectionList
@@ -23,6 +24,12 @@ namespace Database
             private set => Environment._connections = value;
         }
 
+        public static bool Initialized
+        {
+            get => _initialized;
+            set => _initialized = value;
+        }
+        
         /// <summary>
         /// Initialize the Environment class
         /// </summary>
@@ -34,6 +41,7 @@ namespace Database
             lock (Locker)
             {
                 Environment.Connections ??= new ConnectionList(defaultConnectionProperties);
+                Environment.Initialized = true;
             }
         }
     }

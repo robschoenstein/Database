@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using Database.Entity;
 using Database.Entity.Attributes;
 using Database.Enums;
+using Database.Exceptions;
 using Microsoft.Data.SqlClient;
 using Npgsql;
 using NpgsqlTypes;
@@ -65,6 +66,11 @@ namespace Database
         /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class</param>
         public Parameters(string parameterName, object value, string connectionName = "default")
         {
+            if (!Environment.Initialized)
+            {
+                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+            }
+            
             Add(parameterName, value, connectionName);
         }
 
@@ -150,6 +156,11 @@ namespace Database
         // ReSharper disable once MemberCanBePrivate.Global
         public bool Add(string parameterName, object value, string connectionName = "default")
         {
+            if (!Environment.Initialized)
+            {
+                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+            }
+            
             if (FindParameter(parameterName) > 0)
             {
                 return false;
@@ -181,6 +192,11 @@ namespace Database
         /// <returns><c>true</c> if parameter was added, <c>false</c> otherwise.</returns>
         public bool Add<T>(string parameterName, IList<T> values, string typeName, string connectionName = "default")
         {
+            if (!Environment.Initialized)
+            {
+                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+            }
+            
             if (!values.Any())
             {
                 return false;
@@ -214,6 +230,11 @@ namespace Database
         /// <returns><c>true</c> if parameter was added, <c>false</c> otherwise.</returns>
         public bool Add(string parameterName, DataTable table, string typeName = null, string connectionName = "default")
         {
+            if (!Environment.Initialized)
+            {
+                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+            }
+            
             if (table == null || table.Rows.Count == 0)
             {
                 return false;
@@ -263,6 +284,11 @@ namespace Database
         /// <returns><c>true</c> if parameter was added, <c>false</c> otherwise.</returns>
         public bool Add(string parameterName, DbType type, object value, string connectionName = "default")
         {
+            if (!Environment.Initialized)
+            {
+                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+            }
+            
             if (FindParameter(parameterName) > 0)
             {
                 return false;

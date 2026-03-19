@@ -74,8 +74,8 @@ namespace Database.Entity
                 }
 
                 var dataRow = dataTable.Rows[i];
-                // ReSharper disable once RedundantAssignment
-                var entity = default(T);
+                
+                T entity;
 
                 try
                 {

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Linq;
 using Database.Connection;
+using Database.Entity;
 using Database.Enums;
 using Database.Exceptions;
 using Microsoft.Data.SqlClient;
@@ -20,7 +22,6 @@ public static class Data
 {
     // ReSharper disable once InconsistentNaming
     private const int COMMAND_TIMEOUT = 180;
-    
 
     /// <summary>
     /// Initializes Data class
@@ -28,9 +29,59 @@ public static class Data
     /// <param name="defaultConnectionProperties">Default connection properties used to connect to the database</param>
     public static void Initialize(ConnectionProperties defaultConnectionProperties)
     {
+        if (defaultConnectionProperties == null)
+        {
+            throw new DefaultConnectionNotDefined("The Default Connection has not been defined. Please supply the ConnectionProperties to Data.Initialize(ConnectionProperties).");
+        }
+        
         Environment.Initialize(defaultConnectionProperties);
     }
 
+    public static T GetEntity<T>(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
+        var table = GetDataTable(command, dbCommandType);
+        var row = table.Rows[0];
+
+        return row.ToEntity<T>();
+    }
+    
+    public static IList<T> GetEntityList<T>(string command,
+        CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
+        return GetDataTable(command, dbCommandType).ToEntities<T>().ToList();
+    }
+    
+    public static IList<T> GetEntityList<T>(string command, Parameters parameters,
+        CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
+        return GetDataTable(command, parameters, dbCommandType).ToEntities<T>().ToList();
+    }
+    
+    public static IList<T> GetEntityList<T>(string command, Parameters parameters, string connectionName,
+        CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
+        return GetDataTable(command, parameters, connectionName, dbCommandType).ToEntities<T>().ToList();
+    }
 
     /// <summary>
     /// Execute the provided procedure and return the results in a DataSet.
@@ -39,6 +90,11 @@ public static class Data
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
     public static DataSet GetDataSet(string command, CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (Environment.Connections.DefaultConnection.IsValid())
             return GetDataSet(command, null, Environment.Connections.DefaultConnection.ConnectionName);
         else
@@ -55,6 +111,11 @@ public static class Data
     public static DataSet GetDataSet(string command, Parameters parameters,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (Environment.Connections.DefaultConnection.IsValid())
             return GetDataSet(command, parameters, Environment.Connections.DefaultConnection.ConnectionName);
         else
@@ -72,6 +133,11 @@ public static class Data
     public static DataSet GetDataSet(string command, Parameters parameters, string connectionName,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         ValidateConnection(connectionName);
 
         return FillDatSet(command, parameters, connectionName);
@@ -84,6 +150,11 @@ public static class Data
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
     public static DataTable GetDataTable(string command, CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (!Environment.Connections.DefaultConnection.IsValid())
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -100,6 +171,11 @@ public static class Data
     public static DataTable GetDataTable(string command, Parameters parameters,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (!Environment.Connections.DefaultConnection.IsValid())
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -117,6 +193,11 @@ public static class Data
     public static DataTable GetDataTable(string command, Parameters parameters, string connectionName,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         ValidateConnection(connectionName);
 
         return GetDataTable(command, parameters, connectionName, 0);
@@ -133,6 +214,11 @@ public static class Data
     public static DataTable GetDataTable(string command, Parameters parameters, string connectionName, int tableIndex,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         ValidateConnection(connectionName);
 
         return FillDatSet(command, parameters, connectionName, dbCommandType).Tables[tableIndex];
@@ -149,6 +235,11 @@ public static class Data
     private static DataSet FillDatSet(string command, IEnumerable<DbParameter> parameters, string connectionName,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         DbServerType dbServerType = Environment.Connections[connectionName].DbServerType;
         string connectionString = Environment.Connections[connectionName].ConnectionString;
         var dataSet = new DataSet();
@@ -218,6 +309,11 @@ public static class Data
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
     public static DbDataReader GetDataReader(string command, CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (!Environment.Connections.DefaultConnection.IsValid())
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -235,6 +331,11 @@ public static class Data
     public static DbDataReader GetDataReader(string command, Parameters parameters,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (!Environment.Connections.DefaultConnection.IsValid())
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -253,6 +354,11 @@ public static class Data
     public static DbDataReader GetDataReader(string command, Parameters parameters, string connectionName,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         ValidateConnection(connectionName);
 
         if (!Environment.Connections[connectionName].IsValid())
@@ -273,6 +379,11 @@ public static class Data
     public static DbDataReader CreateDataReader(string command, Parameters parameters, string connectionName,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         ValidateConnection(connectionName);
 
         DbCommand dbCommand;
@@ -328,6 +439,11 @@ public static class Data
     public static int Execute(string command,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (Environment.Connections.DefaultConnection == null)
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -347,6 +463,11 @@ public static class Data
     public static int Execute(string command, Parameters parameters,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (Environment.Connections.DefaultConnection == null)
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -362,12 +483,17 @@ public static class Data
     /// <param name="connectionName">Connection key/name</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
     /// <returns>
-    /// Stored procedure RETURN value.
+    /// Command RETURN value.
     /// </returns>
     // ReSharper disable once MemberCanBePrivate.Global
     public static int Execute(string command, Parameters parameters, string connectionName,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         ValidateConnection(connectionName);
 
         DbCommand dbCommand;
@@ -384,8 +510,8 @@ public static class Data
                     CommandTimeout = COMMAND_TIMEOUT
                 };
 
-                returnParameter = new NpgsqlParameter("@RETURN_VALUE", NpgsqlDbType.Integer)
-                    { Direction = ParameterDirection.ReturnValue };
+                returnParameter = new NpgsqlParameter("p_out", NpgsqlDbType.Integer)
+                    { Direction = ParameterDirection.Output };
 
                 break;
             case DbServerType.mssql:
@@ -437,6 +563,11 @@ public static class Data
     public static object ExecuteScalar(string command,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (Environment.Connections.DefaultConnection == null)
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -456,6 +587,11 @@ public static class Data
     public static object ExecuteScalar(string command, Parameters parameters,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (Environment.Connections.DefaultConnection == null)
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -478,6 +614,11 @@ public static class Data
     public static object ExecuteScalar(string command, Parameters parameters, string connectionName,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         ValidateConnection(connectionName);
 
         DbCommand dbCommand;
@@ -538,6 +679,11 @@ public static class Data
     public static T ExecuteScalar<T>(string command,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (Environment.Connections.DefaultConnection == null)
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -560,6 +706,11 @@ public static class Data
     public static T ExecuteScalar<T>(string command, Parameters parameters,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         if (Environment.Connections.DefaultConnection == null)
             throw new DefaultConnectionNotDefined(
                 "The Default Connection has not been defined. Please define prior to use.");
@@ -583,6 +734,11 @@ public static class Data
     public static T ExecuteScalar<T>(string command, Parameters parameters, string connectionName,
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
+        if (!Environment.Initialized)
+        {
+            throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+        }
+        
         ValidateConnection(connectionName);
 
         DbCommand dbCommand;
