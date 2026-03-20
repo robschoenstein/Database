@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="../Database.Identity/Database.Identity.csproj" />
+  <Project Path="Database.csproj" />
+  <Properties Name="TeamFoundationVersionControl">
+    <Property Name="SccEnterpriseProvider" Value="{4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}" />
+    <Property Name="SccLocalPath0" Value="." />
+    <Property Name="SccLocalPath1" Value="." />
+    <Property Name="SccNumberOfProjects" Value="2" />
+    <Property Name="SccProjectUniqueName1" Value="Database.csproj" />
+    <Property Name="SccTeamFoundationServer" Value="https://intellisomething.visualstudio.com/defaultcollection" />
+  </Properties>
+</Solution>
