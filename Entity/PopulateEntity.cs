@@ -95,7 +95,8 @@ namespace Database.Entity
                 dataList.TryAdd(i, entity);
             });
 
-            return dataList.OrderBy(d => d.Key).Select(d => d.Value);
+            return dataList.OrderBy(d => d.Key)
+                .Select(d => d.Value);
         }
 
         /// <summary>

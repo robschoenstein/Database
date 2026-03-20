@@ -7,6 +7,8 @@ namespace Database.Entity
 {
   /// <summary>
   /// Inherit from this to create a custom entity collection
+  ///
+  /// No longer used. Will be removed in a later version.
   /// </summary>
   /// <typeparam name="T"></typeparam>
   public abstract class EntityCollectionBase<T> : IList<T>
@@ -25,18 +27,18 @@ namespace Database.Entity
     }
 
     /// <summary>
-    /// Gets the number of elements contained in the <see cref="T:System.Collections.Generic.ICollection`1" />.
+    /// Gets the number of elements contained in the <see cref="T:System.Collections.Generic.IList`1" />.
     /// </summary>
-    /// <returns>The number of elements contained in the <see cref="T:System.Collections.Generic.ICollection`1" />.</returns>
+    /// <returns>The number of elements contained in the <see cref="T:System.Collections.Generic.IList`1" />.</returns>
     public int Count
     {
       get { return EntityList.Count; }
     }
 
     /// <summary>
-    /// Gets a value indicating whether the <see cref="T:System.Collections.Generic.ICollection`1" /> is read-only.
+    /// Gets a value indicating whether the <see cref="T:System.Collections.Generic.IList`1" /> is read-only.
     /// </summary>
-    /// <returns>true if the <see cref="T:System.Collections.Generic.ICollection`1" /> is read-only; otherwise, false.</returns>
+    /// <returns>true if the <see cref="T:System.Collections.Generic.IList`1" /> is read-only; otherwise, false.</returns>
     public bool IsReadOnly
     {
       get { return EntityList.IsReadOnly; }
@@ -105,7 +107,7 @@ namespace Database.Entity
     }
 
     /// <summary>
-    /// Removes all from collection.
+    /// Removes all specified items from the underlying list.
     /// </summary>
     /// <param name="match">Match <see cref="Predicate{T}"/>.</param>
     /// <returns>Number of removed items.</returns>

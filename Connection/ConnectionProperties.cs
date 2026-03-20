@@ -9,7 +9,7 @@ public class ConnectionProperties
     public string ConnectionString { get; set; }
 
     public DbServerType DbServerType { get; set; }
-    
+
     /// <summary>
     /// The default database schema to use.
     /// Defaults to "dbo"
@@ -25,7 +25,7 @@ public class ConnectionProperties
 
     public bool IsValid()
     {
-        return !string.IsNullOrEmpty(ConnectionName) 
+        return !string.IsNullOrEmpty(ConnectionName)
                && !string.IsNullOrEmpty(ConnectionString);
     }
 }

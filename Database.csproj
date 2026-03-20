@@ -17,7 +17,6 @@
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" />
     <PackageReference Include="Npgsql" Version="10.0.2" />
-    <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
     <PackageReference Include="Microsoft.AspNetCore.SystemWebAdapters" Version="2.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.SystemWebAdapters.CoreServices" Version="2.3.0" />
   </ItemGroup>

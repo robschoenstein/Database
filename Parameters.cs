@@ -63,12 +63,12 @@ namespace Database
         /// </summary>
         /// <param name="parameterName">Parameter name</param>
         /// <param name="value">Parameter value</param>
-        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class</param>
         public Parameters(string parameterName, object value, string connectionName = "default")
         {
-            if (!Environment.Initialized)
+            if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
             }
             
             Add(parameterName, value, connectionName);
@@ -148,7 +148,7 @@ namespace Database
         /// the list of parameters.
         /// </summary>
         /// <param name="parameterName">Name of the parameter</param><param name="value">Value of the parameter</param>
-        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class</param>
         /// <returns>
         /// True if the parameter was added. False if a parameter with the same name already
         ///             existed in the parameter list
@@ -156,9 +156,9 @@ namespace Database
         // ReSharper disable once MemberCanBePrivate.Global
         public bool Add(string parameterName, object value, string connectionName = "default")
         {
-            if (!Environment.Initialized)
+            if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
             }
             
             if (FindParameter(parameterName) > 0)
@@ -188,13 +188,13 @@ namespace Database
         /// <param name="parameterName">Name of the parameter.</param>
         /// <param name="values">Collection of values.</param>
         /// <param name="typeName">Table valued parameter name (eg. dbo.SimpleValueType).</param>
-        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class</param>
         /// <returns><c>true</c> if parameter was added, <c>false</c> otherwise.</returns>
         public bool Add<T>(string parameterName, IList<T> values, string typeName, string connectionName = "default")
         {
-            if (!Environment.Initialized)
+            if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
             }
             
             if (!values.Any())
@@ -226,13 +226,13 @@ namespace Database
         /// <param name="parameterName">Name of the parameter</param>
         /// <param name="table">DataTable containing data</param>
         /// <param name="typeName">Table valued parameter name (eg. dbo.SimpleValueType) Microslop SQL Server only. Not used for PostgreSql, so it defaults to null.</param>
-        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class</param>
         /// <returns><c>true</c> if parameter was added, <c>false</c> otherwise.</returns>
         public bool Add(string parameterName, DataTable table, string typeName = null, string connectionName = "default")
         {
-            if (!Environment.Initialized)
+            if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
             }
             
             if (table == null || table.Rows.Count == 0)
@@ -280,13 +280,13 @@ namespace Database
         /// <param name="parameterName">Name of the parameter</param>
         /// <param name="type">Type of the parameter</param>
         /// <param name="value">Value of the parameter</param>
-        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class.</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class.</param>
         /// <returns><c>true</c> if parameter was added, <c>false</c> otherwise.</returns>
         public bool Add(string parameterName, DbType type, object value, string connectionName = "default")
         {
-            if (!Environment.Initialized)
+            if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The Data class has not been initialized. Please call Data.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
             }
             
             if (FindParameter(parameterName) > 0)
@@ -377,7 +377,7 @@ namespace Database
         /// <param name="parameterName">Parameter name.</param>
         /// <param name="value">Enumerable value.</param>
         /// <param name="typeName">SQL Table Valued Parameter Type</param>
-        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class.</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class.</param>
         /// <returns><c>true</c> if table valued parameter was created and added, <c>false</c> otherwise.</returns>
         // ReSharper disable once InconsistentNaming
         private bool AddSimpleTVP<T>(
@@ -447,7 +447,7 @@ namespace Database
         /// <param name="parameterName">Parameter name.</param>
         /// <param name="value">Enumerable value.</param>
         /// <param name="typeName">SQL Table Valued Parameter Type</param>
-        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class.</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class.</param>
         /// <returns><c>true</c> if table valued parameter was created and added, <c>false</c> otherwise.</returns>
         // ReSharper disable once InconsistentNaming
         private bool AddComplexTVP<T>(
@@ -486,7 +486,7 @@ namespace Database
         /// <param name="parameterName">Parameter name.</param>
         /// <param name="value">Enumerable value.</param>
         /// <param name="typeName">SQL Table Valued Parameter Type</param>
-        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class.</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class.</param>
         /// <returns><c>true</c> if table valued parameter was created and added, <c>false</c> otherwise.</returns>
         // ReSharper disable once InconsistentNaming
         private bool CreateComplexTVP<T>(string parameterName, IEnumerable<T> value, string typeName,
@@ -574,7 +574,7 @@ namespace Database
         /// <param name="parameterName">Parameter name.</param>
         /// <param name="value">Enumerable value.</param>
         /// <param name="typeName">SQL Table Valued Parameter Type. Required by Microslop SQL Server. Not Required by PostgreSQL.</param>
-        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the Data class.</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class.</param>
         /// <returns><c>true</c> if table valued parameter was created and added, <c>false</c> otherwise.</returns>
         // ReSharper disable once InconsistentNaming
         // ReSharper disable once UnusedMember.Local

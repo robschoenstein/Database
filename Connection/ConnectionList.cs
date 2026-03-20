@@ -5,7 +5,6 @@ namespace Database.Connection
 {
     public class ConnectionList
     {
-
         private ConnectionProperties _defaultConnection;
         private Hashtable _connections = new Hashtable();
 
@@ -98,7 +97,7 @@ namespace Database.Connection
                 {
                     continue;
                 }
-                
+
                 _connections.Remove(key);
             }
         }

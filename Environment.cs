@@ -6,14 +6,14 @@ namespace Database
     /// <summary>
     /// Static database environment variable containing connection list
     ///
-    /// It is initialized during the initialization of the Data class
+    /// It is initialized when the DataAccess class is constructed.
     /// </summary>
     internal static class Environment
     {
         //private static Environment _instance = null;
         private static readonly Lock Locker = new Lock();
         private static ConnectionList _connections;
-        private static bool _initialized = false;
+        private static bool _isInitialized;
 
         /// <summary>
         /// Gets the ConnectionList
@@ -24,10 +24,10 @@ namespace Database
             private set => Environment._connections = value;
         }
 
-        public static bool Initialized
+        public static bool IsInitialized
         {
-            get => _initialized;
-            set => _initialized = value;
+            get => _isInitialized;
+            private set => _isInitialized = value;
         }
         
         /// <summary>
@@ -41,7 +41,7 @@ namespace Database
             lock (Locker)
             {
                 Environment.Connections ??= new ConnectionList(defaultConnectionProperties);
-                Environment.Initialized = true;
+                Environment.IsInitialized = true;
             }
         }
     }
