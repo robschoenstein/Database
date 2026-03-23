@@ -1,5 +1,4 @@
 <Solution>
-  <Project Path="../Database.Identity/Database.Identity.csproj" />
   <Project Path="Database.csproj" />
   <Properties Name="TeamFoundationVersionControl">
     <Property Name="SccEnterpriseProvider" Value="{4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}" />
