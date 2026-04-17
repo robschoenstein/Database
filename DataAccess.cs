@@ -174,7 +174,7 @@ public class DataAccess
 
         return GetDataTable(command, parameters, connectionName, dbCommandType).ToEntities<T>().ToList();
     }
-
+    
     /// <summary>
     /// Execute the provided procedure and return the results in a DataSet.
     /// </summary>

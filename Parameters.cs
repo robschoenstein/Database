@@ -45,7 +45,7 @@ namespace Database
                 _parameters[index] = value;
             }
         }
-
+        
         /// <summary>
         /// Returns the number of parameters in the list.
         /// </summary>
@@ -73,7 +73,7 @@ namespace Database
             
             Add(parameterName, value, connectionName);
         }
-
+        
         /// <summary>
         /// Finds a parameter matching the provided name.
         /// </summary>
