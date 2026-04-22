@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Database.Entity.Attributes
+﻿namespace Database.Attributes
 {
   /// <summary>
   /// Used to map database values to local enum values

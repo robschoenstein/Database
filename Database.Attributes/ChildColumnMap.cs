@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Database.Entity.Attributes
+﻿namespace Database.Attributes
 {
   /// <summary>
   /// Provides child object property/column mapping from the parent datatable. However, child attributes

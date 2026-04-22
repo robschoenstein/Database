@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Database.Entity.Attributes
+﻿namespace Database.Attributes
 {
   [AttributeUsage(AttributeTargets.Property)]
   public class ColumnName : Attribute
