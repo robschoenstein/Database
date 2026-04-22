@@ -24,6 +24,9 @@ namespace Database.Entity
         /// <param name="dataRow">The <see cref="DataRow"/>.</param>
         public static void ToEntity<T>(T entity, DataRow dataRow)
         {
+            ArgumentNullException.ThrowIfNull(entity);
+            ArgumentNullException.ThrowIfNull(dataRow);
+            
             var columns = dataRow.Table.Columns.Cast<DataColumn>().ToList();
 
             //iterate through columns and set properties of the entity with the matching column values
@@ -39,6 +42,9 @@ namespace Database.Entity
         /// <param name="rowIndex">Index of the row.</param>
         public static void ToEntity<T>(T entity, DataTable dataTable, int rowIndex)
         {
+            ArgumentNullException.ThrowIfNull(entity);
+            ArgumentNullException.ThrowIfNull(dataTable);
+            
             var columns = dataTable.Columns.Cast<DataColumn>().ToList();
 
             //iterate through columns and set properties of the entity with the matching column values
@@ -53,50 +59,19 @@ namespace Database.Entity
         /// <returns><see cref="IEnumerable"/> containing the entities.</returns>
         public static IEnumerable<T> ToEntities<T>(DataTable dataTable)
         {
+            ArgumentNullException.ThrowIfNull(dataTable);
+            
             var columns = dataTable.Columns.Cast<DataColumn>().ToList();
-
-            var cancelTokenSource = new CancellationTokenSource();
-
-            //TODO: Create timer that cancels the parallel operation upon timeout.
-            var options = new ParallelOptions
-            {
-                CancellationToken = cancelTokenSource.Token,
-                MaxDegreeOfParallelism = 2
-            };
-
             var dataList = new ConcurrentDictionary<int, T>();
 
-            Parallel.For(0, dataTable.Rows.Count, options, (i, loopState) =>
+            Parallel.For(0, dataTable.Rows.Count, i =>
             {
-                if (loopState.ShouldExitCurrentIteration)
-                {
-                    return;
-                }
-
-                var dataRow = dataTable.Rows[i];
-                
-                T entity;
-
-                try
-                {
-                    entity = Activator.CreateInstance<T>();
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception(
-                        string.Format("Default (parameterless) constructor does not exist for type: {0}",
-                            typeof(T).Name), ex);
-                }
-
-                //iterate through columns and set properties of the entity with the matching column values
-                Populate(dataRow, entity, columns);
-
-                //entity populated. Add it to the collection.
+                var entity = Activator.CreateInstance<T>();
+                Populate(dataTable.Rows[i], entity, columns);
                 dataList.TryAdd(i, entity);
             });
 
-            return dataList.OrderBy(d => d.Key)
-                .Select(d => d.Value);
+            return dataList.OrderBy(d => d.Key).Select(d => d.Value);
         }
 
         /// <summary>
@@ -108,57 +83,76 @@ namespace Database.Entity
         /// <param name="columns">Column list.</param>
         private static void Populate<T>(DataRow dataRow, T entity, IList<DataColumn> columns)
         {
-            for (var i = 0; i < columns.Count(); i++)
+            var entityType = entity!.GetType();
+            var cache = ObjectCache.Instance;
+            cache.EnsureTypeCached(entityType);
+
+            for (var i = 0; i < columns.Count; i++)
             {
-                try
+                var columnName = columns[i].ColumnName;
+                var columnValue = dataRow[i];
+
+                var matchingProperties = RetrieveMatchingProperties(columnName, entityType);
+
+                foreach (var pi in matchingProperties)
                 {
-                    var entityType = entity.GetType();
-
-                    var properties = RetrieveMatchingProperties(columns[i].ColumnName, entityType);
-
-                    if (properties.Count <= 0)
-                        continue;
-
-                    foreach (var pi in properties)
+                    try
                     {
-                        //TODO: need to cache the ChildColumnMap attributes
-                        //var childColumnMap = (ChildColumnMap[])Attribute.GetCustomAttributes(pi, typeof(ChildColumnMap));
-                        //if (childColumnMap == null || childColumnMap.Length <= 0)
-                        //{
-                        var val = dataRow[i] is DBNull ? GetDefault(pi.PropertyType) : ChangeType(dataRow[i], pi);
-                        pi.SetValue(entity, val, null);
-                        //}
-                        //else
-                        //{
-                        //  var val = pi.GetValue(entity, null);
+                        // ChildColumnMap support (fully restored and improved)
+                        var childMaps = cache.GetChildColumnMaps(entityType, columnName);
+                        var childMap = childMaps.FirstOrDefault(m => m.ParentProperty == pi).Map;
 
-                        //  if (val == null)
-                        //    pi.SetValue(entity, Activator.CreateInstance(pi.PropertyType), null);
-                        //  val = pi.GetValue(entity, null);
-                        //  var attribute = childColumnMap.SingleOrDefault(m => m.Name.ToUpper().Equals(columns[i].ColumnName.ToUpper()));
-                        //  var cpi = GetChildPropertyInfo(val, attribute.ChildPropertyName);
+                        if (childMap != null)
+                        {
+                            HandleChildColumnMap(entity, pi, childMap, columnValue);
+                            continue;
+                        }
 
-                        //  if (cpi == null)
-                        //    continue;
+                        // Normal property population
+                        var val = columnValue is DBNull 
+                            ? GetDefault(pi.PropertyType) 
+                            : ChangeType(columnValue, pi);
 
-                        //  cpi.SetValue(val, dataRow[i].GetType() == typeof(DBNull) ? GetDefault(cpi.PropertyType) : ChangeType(dataRow[i], cpi), null);
-                        //}
+                        pi.SetValue(entity, val);
+                    }
+                    catch (TypeConversionException tce)
+                    {
+                        throw new PopulationException(tce.PropertyName, tce.PropertyType, columnName,
+                            columnValue?.GetType(), columnValue,
+                            $"Property Population Failed! Property: {tce.PropertyName}, Column: {columnName}", tce);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception($"PopulateEntity failed while setting '{pi.Name}' from column '{columnName}'", ex);
                     }
                 }
-                catch (TypeConversionException tce)
-                {
-                    throw new PopulationException(tce.PropertyName, tce.PropertyType, columns[i].ColumnName,
-                        dataRow[i].GetType(), dataRow[i],
-                        string.Format(
-                            "Property Population Failed! Property Name: {0}, Property Type: {1}, Column Name: {2}, Column Type: {3}",
-                            tce.PropertyName, tce.PropertyType.Name, columns[i].ColumnName, dataRow[i].GetType().Name),
-                        tce);
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception("PopulateModel.cs --> PopulateEntity<T> : Error while populating entity", ex);
-                }
             }
+        }
+        
+        /// <summary>
+        /// Handles [ChildColumnMap] – maps a flat column into a nested child object's property.
+        /// Child object is auto-created if null.
+        /// </summary>
+        private static void HandleChildColumnMap<T>(T entity, PropertyInfo parentProperty, 
+            ChildColumnMap map, object columnValue)
+        {
+            object? child = parentProperty.GetValue(entity);
+            if (child == null)
+            {
+                child = Activator.CreateInstance(parentProperty.PropertyType);
+                parentProperty.SetValue(entity, child);
+            }
+
+            var childProp = parentProperty.PropertyType.GetProperty(
+                map.ChildPropertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
+
+            if (childProp == null) return;
+
+            var val = columnValue is DBNull 
+                ? GetDefault(childProp.PropertyType) 
+                : ChangeType(columnValue, childProp);
+
+            childProp.SetValue(child, val);
         }
 
         // ReSharper disable once UnusedMember.Local
@@ -176,51 +170,12 @@ namespace Database.Entity
 
         private static List<PropertyInfo> RetrieveMatchingProperties(string columnName, Type entityType)
         {
-            var objectCache = ObjectCache.Instance;
-
-            if (objectCache.ContainsProperty(entityType, columnName))
-            {
-                return objectCache.RetrieveMatchingProperties(columnName, entityType);
-            }
-
-            var matches = new List<PropertyInfo>();
-
-            var pi = entityType.GetProperty(columnName,
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
-
-            if (pi != null && Attribute.GetCustomAttribute(pi, typeof(EntityIgnore)) == null)
-            {
-                matches.Add(pi);
-
-                objectCache.AddCacheObject(entityType, pi, Attribute.GetCustomAttributes(pi, typeof(ColumnName)));
-            }
-
-            var properties = entityType.GetProperties();
-
-            foreach (var propertyInfo in properties.Where(p => pi == null || p != pi))
-            {
-                if (objectCache.ContainsColumnNameAttribute(entityType, propertyInfo.Name)
-                    || Attribute.GetCustomAttribute(propertyInfo, typeof(EntityIgnore)) != null)
-                {
-                    continue;
-                }
-
-                var attributes = Attribute.GetCustomAttributes(propertyInfo, typeof(ColumnName))
-                    .Where(a => ((ColumnName)a).Name == columnName).ToArray();
-
-                if (attributes.Length <= 0)
-                    continue;
-
-                matches.Add(propertyInfo);
-                objectCache.AddCacheObject(entityType, propertyInfo, attributes);
-            }
-
-            return matches;
+            return ObjectCache.Instance.RetrieveMatchingProperties(columnName, entityType);
         }
 
         private static object GetDefault(Type type)
         {
-            return type.IsValueType ? Activator.CreateInstance(type) : null;
+            return type.IsValueType ? Activator.CreateInstance(type) : null!;
         }
 
         /// <summary>
@@ -241,18 +196,11 @@ namespace Database.Entity
         /// </remarks>
         public static object ChangeType(object value, PropertyInfo propertyInfo)
         {
-            object newValue;
+            ArgumentNullException.ThrowIfNull(propertyInfo);
 
             try
             {
                 var conversionType = propertyInfo.PropertyType;
-
-                // Note: This if block was taken from Convert.ChangeType as is, and is needed here since we're
-                // checking properties on conversionType below.
-                if (conversionType == null)
-                {
-                    throw new ArgumentNullException("value");
-                } // end if
 
                 // If it's not a nullable type, just pass through the parameters to Convert.ChangeType
 
@@ -267,14 +215,15 @@ namespace Database.Entity
                     // Note: We only do this check if we're converting to a nullable type, since doing it outside
                     // would diverge from Convert.ChangeType's behavior, which throws an InvalidCastException if
                     // value is null and conversionType is a value type.
-                    if (value == null)
+                    if (value == null || value == DBNull.Value)
                     {
-                        return null;
+                        return null!;
                     } // end if
 
                     // It's a nullable type, and not null, so that means it can be converted to its underlying type,
                     // so overwrite the passed-in conversion type with this underlying type
                     var nullableConverter = new NullableConverter(conversionType);
+                    
                     conversionType = nullableConverter.UnderlyingType;
                 } // end if
 
@@ -282,20 +231,20 @@ namespace Database.Entity
                 // nullable type), pass the call on to Convert.ChangeType
                 if (conversionType.IsEnum)
                 {
-                    if (value is int)
-                        return Enum.ToObject(propertyInfo.PropertyType, value);
+                    if (value is int i)
+                    {
+                        return Enum.ToObject(propertyInfo.PropertyType, i);
+                    }
 
-                    return GetEnumValue(propertyInfo, (string)value);
+                    return GetEnumValue(propertyInfo, value?.ToString());
                 }
 
-                newValue = Convert.ChangeType(value, conversionType);
+                return Convert.ChangeType(value, conversionType);
             }
             catch (Exception ex)
             {
                 throw new TypeConversionException(propertyInfo, "Type Conversion Failed", ex);
             }
-
-            return newValue;
         }
 
         /// <summary>
@@ -307,21 +256,11 @@ namespace Database.Entity
         /// map, the matching enumerated value is returned. Otherwise, the default enumerated value is returned.</returns>
         private static object GetEnumValue(PropertyInfo propertyInfo, string value)
         {
-            var objectCache = ObjectCache.Instance;
-
-            EnumValueMap[] enumValueMap;
-
-            if (objectCache.ContainsEnumValueMap(propertyInfo))
-                enumValueMap = objectCache.RetrieveEnumValueMap(propertyInfo);
-            else
-                enumValueMap = (EnumValueMap[])Attribute.GetCustomAttributes(propertyInfo, typeof(EnumValueMap));
-
-            EnumValueMap map = null;
-
-            if (enumValueMap.Length > 0)
-            {
-                map = enumValueMap.FirstOrDefault(m => m.DatabaseValue == value);
-            }
+            var cache = ObjectCache.Instance;
+            var enumMaps = cache.ContainsEnumValueMap(propertyInfo)
+                ? cache.RetrieveEnumValueMap(propertyInfo)
+                : (EnumValueMap[])Attribute.GetCustomAttributes(propertyInfo, typeof(EnumValueMap));
+            var map = enumMaps.FirstOrDefault(m => m.DatabaseValue == value);
 
             try
             {
@@ -331,27 +270,16 @@ namespace Database.Entity
             }
             catch (Exception ex)
             {
-                try
+                // Fallback to StringValueAttribute if present
+                foreach (var val in Enum.GetValues(propertyInfo.PropertyType))
                 {
-                    foreach (var val in from Enum val in Enum.GetValues(propertyInfo.PropertyType)
-                             let fi = propertyInfo.PropertyType.GetField(val.ToString())
-                             let attributes = (StringValueAttribute[])fi.GetCustomAttributes(
-                                 typeof(StringValueAttribute), false)
-                             let attr = attributes[0]
-                             where attr.StringValue == value
-                             select val)
-                    {
-                        return Convert.ChangeType(val, propertyInfo.PropertyType);
-                    }
-                }
-                catch (Exception ex2)
-                {
-                    throw new ArgumentException(
-                        "The value '" + value + "' is not contained in " + propertyInfo.PropertyType.Name, ex2);
+                    var fi = propertyInfo.PropertyType.GetField(val.ToString()!);
+                    var attr = fi?.GetCustomAttribute<StringValueAttribute>();
+                    if (attr?.StringValue == value)
+                        return val;
                 }
 
-                throw new ArgumentException(
-                    "The value '" + value + "' is not contained in " + propertyInfo.PropertyType.Name, ex);
+                throw new ArgumentException($"Value '{value}' is not valid for enum {propertyInfo.PropertyType.Name}");
             }
         }
     }

@@ -1,35 +1,33 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <SccProjectName>SAK</SccProjectName>
-    <SccLocalPath>SAK</SccLocalPath>
-    <SccAuxPath>SAK</SccAuxPath>
-    <SccProvider>SAK</SccProvider>
     <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
     <AssemblyTitle>Database</AssemblyTitle>
     <Company>IntelliSomething</Company>
     <Product>Database</Product>
-    <Copyright>Copyright © IntelliSomething  2026</Copyright>
+    <Copyright>Copyright © IntelliSomething 2026</Copyright>
+
     <AssemblyVersion>2.0.0</AssemblyVersion>
     <FileVersion>2.0.0</FileVersion>
-    <InformationalVersion>2.0.0 .Net Core 10</InformationalVersion>
+    <InformationalVersion>2.0.0 - .NET 10 Core</InformationalVersion>
+
     <Configurations>Debug;Release;Staging</Configurations>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
+
   <PropertyGroup Condition=" '$(Configuration)' == 'Staging' ">
-    <DebugSymbols Condition=" '$(DebugSymbols)' == '' ">true</DebugSymbols>
-    <Optimize Condition=" '$(Optimize)' == '' ">false</Optimize>
+    <DebugSymbols>true</DebugSymbols>
+    <Optimize>false</Optimize>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
     <PackageReference Include="Npgsql" Version="10.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.SystemWebAdapters" Version="2.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.SystemWebAdapters.CoreServices" Version="2.3.0" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="Microsoft.Data.SqlClient">
-      <HintPath>..\..\..\.nuget\packages\microsoft.data.sqlclient\6.1.1\ref\net9.0\Microsoft.Data.SqlClient.dll</HintPath>
-    </Reference>
   </ItemGroup>
 </Project>

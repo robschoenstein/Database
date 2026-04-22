@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Threading.Tasks;
 using Database.Connection;
 using Database.Entity;
 using Database.Enums;
@@ -20,8 +21,8 @@ namespace Database;
 /// </summary>
 public class DataAccess
 {
-    // ReSharper disable once InconsistentNaming
-    private const int COMMAND_TIMEOUT = 180;
+
+    private const int CommandTimeout = 180;
 
     /// <summary>
     /// Initializes DataAccess class and the underlying Environment storage class
@@ -29,12 +30,7 @@ public class DataAccess
     /// <param name="defaultConnectionProperties">Default connection properties used to connect to the database</param>
     public DataAccess(ConnectionProperties defaultConnectionProperties)
     {
-        if (defaultConnectionProperties == null)
-        {
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please supply the ConnectionProperties to DataAccess.Initialize(ConnectionProperties).");
-        }
-
+        ArgumentNullException.ThrowIfNull(defaultConnectionProperties);
         if (!Environment.IsInitialized)
         {
             Environment.Initialize(defaultConnectionProperties);
@@ -50,18 +46,7 @@ public class DataAccess
     /// <returns>An entity</returns>
     /// <exception cref="DataNotInitialized">If the caller attempts to utilize this library without creating an instance of this class.</exception>
     public static T GetEntity<T>(string command, CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        var table = GetDataTable(command, dbCommandType);
-        var row = table.Rows[0];
-
-        return row.ToEntity<T>();
-    }
+        => GetEntity<T>(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Retrieves a row from the database and converts to the specified entity type.
@@ -72,20 +57,8 @@ public class DataAccess
     /// <typeparam name="T">Entity type</typeparam>
     /// <returns>An entity.</returns>
     /// <exception cref="DataNotInitialized">If the caller attempts to utilize this library without creating an instance of this class.</exception>
-    public static T GetEntity<T>(string command, Parameters parameters,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        var table = GetDataTable(command, parameters, dbCommandType);
-        var row = table.Rows[0];
-
-        return row.ToEntity<T>();
-    }
+    public static T GetEntity<T>(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetEntity<T>(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Retrieves a row from the database and converts to the specified entity type.
@@ -97,20 +70,8 @@ public class DataAccess
     /// <typeparam name="T">Entity type</typeparam>
     /// <returns>An entity.</returns>
     /// <exception cref="DataNotInitialized">If the caller attempts to utilize this library without creating an instance of this class.</exception>
-    public static T GetEntity<T>(string command, Parameters parameters, string connectionName,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        var table = GetDataTable(command, parameters, connectionName, dbCommandType);
-        var row = table.Rows[0];
-
-        return row.ToEntity<T>();
-    }
+    public static T GetEntity<T>(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataTable(command, parameters, connectionName, dbCommandType).ToEntity<T>();
 
     /// <summary>
     /// Retrieves a table from the database and converts to a <see cref="IList"/>/<T/> of the specified entity type.
@@ -120,17 +81,8 @@ public class DataAccess
     /// <typeparam name="T">Entity type</typeparam>
     /// <returns>A <see cref="IList"/>/<T/> of entities</returns>
     /// <exception cref="DataNotInitialized">If the caller attempts to utilize this library without creating an instance of this class.</exception>
-    public static IList<T> GetEntityList<T>(string command,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        return GetDataTable(command, dbCommandType).ToEntities<T>().ToList();
-    }
+    public static IList<T> GetEntityList<T>(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataTable(command, dbCommandType).ToEntities<T>().ToList();
 
     /// <summary>
     /// Retrieves a table from the database and converts to a <see cref="IList"/>/<T/> of the specified entity type.
@@ -141,17 +93,8 @@ public class DataAccess
     /// <typeparam name="T">Entity type</typeparam>
     /// <returns>A <see cref="IList"/>/<T/> of entities</returns>
     /// <exception cref="DataNotInitialized">If the caller attempts to utilize this library without creating an instance of this class.</exception>
-    public static IList<T> GetEntityList<T>(string command, Parameters parameters,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        return GetDataTable(command, parameters, dbCommandType).ToEntities<T>().ToList();
-    }
+    public static IList<T> GetEntityList<T>(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataTable(command, parameters, dbCommandType).ToEntities<T>().ToList();
 
     /// <summary>
     /// Retrieves a table from the database and converts to a <see cref="IList"/>/<T/> of the specified entity type.
@@ -163,17 +106,8 @@ public class DataAccess
     /// <typeparam name="T">Entity type</typeparam>
     /// <returns>A <see cref="IList"/>/<T/> of entities</returns>
     /// <exception cref="DataNotInitialized">If the caller attempts to utilize this library without creating an instance of this class.</exception>
-    public static IList<T> GetEntityList<T>(string command, Parameters parameters, string connectionName,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        return GetDataTable(command, parameters, connectionName, dbCommandType).ToEntities<T>().ToList();
-    }
+    public static IList<T> GetEntityList<T>(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataTable(command, parameters, connectionName, dbCommandType).ToEntities<T>().ToList();
     
     /// <summary>
     /// Execute the provided procedure and return the results in a DataSet.
@@ -181,19 +115,7 @@ public class DataAccess
     /// <param name="command">Command to execute</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
     public static DataSet GetDataSet(string command, CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (Environment.Connections.DefaultConnection.IsValid())
-            return GetDataSet(command, null, Environment.Connections.DefaultConnection.ConnectionName);
-        else
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-    }
+        => GetDataSet(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Execute the provided procedure and return the results in a DataSet.
@@ -201,21 +123,8 @@ public class DataAccess
     /// <param name="command">Command to execute</param>
     /// <param name="parameters">Parameter list</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
-    public static DataSet GetDataSet(string command, Parameters parameters,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (Environment.Connections.DefaultConnection.IsValid())
-            return GetDataSet(command, parameters, Environment.Connections.DefaultConnection.ConnectionName);
-        else
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-    }
+    public static DataSet GetDataSet(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataSet(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Execute the provided procedure and return the results in a DataSet.
@@ -224,18 +133,10 @@ public class DataAccess
     /// <param name="parameters">Parameter list</param>
     /// <param name="connectionName">Connection key/name</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
-    public static DataSet GetDataSet(string command, Parameters parameters, string connectionName,
-        CommandType dbCommandType = CommandType.StoredProcedure)
+    public static DataSet GetDataSet(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
     {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
         ValidateConnection(connectionName);
-
-        return FillDatSet(command, parameters, connectionName);
+        return FillDataSet(command, parameters, connectionName, dbCommandType).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -244,19 +145,7 @@ public class DataAccess
     /// <param name="command">Command to execute</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
     public static DataTable GetDataTable(string command, CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (!Environment.Connections.DefaultConnection.IsValid())
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return GetDataTable(command, null, Environment.Connections.DefaultConnection.ConnectionName);
-    }
+        => GetDataTable(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Execute the provided command using the default connection and return the results in a DataTable.
@@ -264,21 +153,8 @@ public class DataAccess
     /// <param name="command">Command to execute</param>
     /// <param name="parameters">Parameter list</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
-    public static DataTable GetDataTable(string command, Parameters parameters,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (!Environment.Connections.DefaultConnection.IsValid())
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return GetDataTable(command, parameters, Environment.Connections.DefaultConnection.ConnectionName);
-    }
+    public static DataTable GetDataTable(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataTable(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Execute the provided procedure and return the results in a DataTable.
@@ -287,19 +163,8 @@ public class DataAccess
     /// <param name="parameters">Parameter list</param>
     /// <param name="connectionName">Connection key/name</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
-    public static DataTable GetDataTable(string command, Parameters parameters, string connectionName,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        ValidateConnection(connectionName);
-
-        return GetDataTable(command, parameters, connectionName, 0);
-    }
+    public static DataTable GetDataTable(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataTable(command, parameters, connectionName, 0, dbCommandType);
 
     /// <summary>
     /// Execute the provided procedure and return the results in a DataTable.
@@ -309,98 +174,12 @@ public class DataAccess
     /// <param name="connectionName">Connection key/name</param>
     /// <param name="tableIndex">Index within tables collection to return</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
-    public static DataTable GetDataTable(string command, Parameters parameters, string connectionName, int tableIndex,
-        CommandType dbCommandType = CommandType.StoredProcedure)
+    public static DataTable GetDataTable(string command, Parameters? parameters, string connectionName, int tableIndex, CommandType dbCommandType = CommandType.StoredProcedure)
     {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
         ValidateConnection(connectionName);
-
-        return FillDatSet(command, parameters, connectionName, dbCommandType).Tables[tableIndex];
+        return FillDataSet(command, parameters, connectionName, dbCommandType).GetAwaiter().GetResult().Tables[tableIndex];
     }
 
-    /// <summary>
-    /// Returns a filled dataset
-    /// </summary>
-    /// <param name="command">SQL Command to execute</param>
-    /// <param name="parameters">Parameters</param>
-    /// <param name="connectionName">Connection key/name</param>
-    /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
-    /// <returns/>
-    private static DataSet FillDatSet(string command, IEnumerable<DbParameter> parameters, string connectionName,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        DbServerType dbServerType = Environment.Connections[connectionName].DbServerType;
-        string connectionString = Environment.Connections[connectionName].ConnectionString;
-        var dataSet = new DataSet();
-
-        switch (dbServerType)
-        {
-            case DbServerType.postgresql:
-                var npgsqlCommand = new NpgsqlCommand(command, new NpgsqlConnection(connectionString))
-                {
-                    CommandType = dbCommandType,
-                    CommandTimeout = COMMAND_TIMEOUT
-                };
-
-                if (parameters != null)
-                {
-                    foreach (var sqlParameter in parameters)
-                    {
-                        npgsqlCommand.Parameters.Add(sqlParameter);
-                    }
-                }
-
-                var npgsqlDataAdapter = new NpgsqlDataAdapter(npgsqlCommand);
-
-                npgsqlDataAdapter.Fill(dataSet);
-
-                npgsqlCommand.Connection?.Close();
-
-                npgsqlDataAdapter.Dispose();
-
-                break;
-            case DbServerType.mssql:
-                var sqlCommand = new SqlCommand(command, new SqlConnection(connectionString))
-                {
-                    CommandType = dbCommandType,
-                    CommandTimeout = COMMAND_TIMEOUT
-                };
-
-                if (parameters != null)
-                {
-                    foreach (var sqlParameter in parameters)
-                    {
-                        sqlCommand.Parameters.Add(sqlParameter);
-                    }
-                }
-
-                var sqlDataAdapter = new SqlDataAdapter(sqlCommand);
-
-                sqlDataAdapter.Fill(dataSet);
-
-                sqlCommand.Connection.Close();
-
-                sqlDataAdapter.Dispose();
-
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-
-
-        return dataSet;
-    }
 
     /// <summary>
     /// Executes the provided command using the default connection and returns an open DataReader.
@@ -408,20 +187,7 @@ public class DataAccess
     /// <param name="command">SQL Command to execute</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
     public static DbDataReader GetDataReader(string command, CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (!Environment.Connections.DefaultConnection.IsValid())
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return GetDataReader(command, null, Environment.Connections.DefaultConnection.ConnectionName,
-                dbCommandType);
-    }
+        => GetDataReader(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Executes the provided command using the default connection and returns an open <see cref="DbDataReader"/>.
@@ -429,22 +195,8 @@ public class DataAccess
     /// <param name="command">SQL Command to execute</param>
     /// <param name="parameters">Parameter list</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
-    public static DbDataReader GetDataReader(string command, Parameters parameters,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (!Environment.Connections.DefaultConnection.IsValid())
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return GetDataReader(command, parameters, Environment.Connections.DefaultConnection.ConnectionName,
-                dbCommandType);
-    }
+    public static DbDataReader GetDataReader(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataReader(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Executes the provided command using the default connection and returns an open DataReader.
@@ -453,83 +205,11 @@ public class DataAccess
     /// <param name="parameters">Parameter list</param>
     /// <param name="connectionName">Connection key/name</param>
     /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
-    public static DbDataReader GetDataReader(string command, Parameters parameters, string connectionName,
-        CommandType dbCommandType = CommandType.StoredProcedure)
+    public static DbDataReader GetDataReader(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
     {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
         ValidateConnection(connectionName);
-
-        if (!Environment.Connections[connectionName].IsValid())
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return CreateDataReader(command, parameters, Environment.Connections[connectionName].ConnectionName,
-                dbCommandType);
-    }
-
-    /// <summary>
-    /// Executes the provided command and returns an open DataReader.
-    /// </summary>
-    /// <param name="command">SQL Command to execute</param>
-    /// <param name="parameters">Parameter list</param>
-    /// <param name="connectionName">Connection key/name</param>
-    /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
-    public static DbDataReader CreateDataReader(string command, Parameters parameters, string connectionName,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        ValidateConnection(connectionName);
-
-        DbCommand dbCommand;
-        DbServerType dbServerType = Environment.Connections[connectionName].DbServerType;
-        string connectionString = Environment.Connections[connectionName].ConnectionString;
-
-        switch (dbServerType)
-        {
-            case DbServerType.postgresql:
-                dbCommand = new NpgsqlCommand(command, new NpgsqlConnection(connectionString))
-                {
-                    CommandType = dbCommandType,
-                    CommandTimeout = 180
-                };
-                break;
-            case DbServerType.mssql:
-                dbCommand = new SqlCommand(command, new SqlConnection(connectionString))
-                {
-                    CommandType = CommandType.StoredProcedure,
-                    CommandTimeout = 180
-                };
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(dbServerType), dbServerType, null);
-        }
-
-
-        if (parameters != null)
-        {
-            foreach (var sqlParameter in parameters)
-            {
-                dbCommand.Parameters.Add(sqlParameter);
-            }
-        }
-
-        if (dbCommand.Connection != null
-            && dbCommand.Connection.State != ConnectionState.Open)
-        {
-            dbCommand.Connection.Open();
-        }
-
-        return dbCommand.ExecuteReader();
+        
+        return CreateDataReader(command, parameters, connectionName, dbCommandType).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -540,21 +220,8 @@ public class DataAccess
     /// <returns>
     /// Stored procedure RETURN value.
     /// </returns>
-    public static int Execute(string command,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (Environment.Connections.DefaultConnection == null)
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return Execute(command, null, Environment.Connections.DefaultConnection.ConnectionName);
-    }
+    public static int Execute(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => Execute(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Executes the provided procedure.
@@ -565,21 +232,8 @@ public class DataAccess
     /// <returns>
     /// Stored procedure RETURN value.
     /// </returns>
-    public static int Execute(string command, Parameters parameters,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (Environment.Connections.DefaultConnection == null)
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return Execute(command, parameters, Environment.Connections.DefaultConnection.ConnectionName);
-    }
+    public static int Execute(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => Execute(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Executes the provided command.
@@ -591,72 +245,11 @@ public class DataAccess
     /// <returns>
     /// Command RETURN value.
     /// </returns>
-    // ReSharper disable once MemberCanBePrivate.Global
-    public static int Execute(string command, Parameters parameters, string connectionName,
+    public static int Execute(string command, Parameters? parameters, string connectionName = "default", 
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
         ValidateConnection(connectionName);
-
-        DbCommand dbCommand;
-        var dbServerType = Environment.Connections[connectionName].DbServerType;
-        var connectionString = Environment.Connections[connectionName].ConnectionString;
-        DbParameter returnParameter;
-
-        switch (dbServerType)
-        {
-            case DbServerType.postgresql:
-                dbCommand = new NpgsqlCommand(command, new NpgsqlConnection(connectionString))
-                {
-                    CommandType = dbCommandType,
-                    CommandTimeout = COMMAND_TIMEOUT
-                };
-
-                returnParameter = new NpgsqlParameter("p_out", NpgsqlDbType.Integer)
-                    { Direction = ParameterDirection.Output };
-
-                break;
-            case DbServerType.mssql:
-                dbCommand = new SqlCommand(command, new SqlConnection(connectionString))
-                {
-                    CommandType = dbCommandType,
-                    CommandTimeout = COMMAND_TIMEOUT
-                };
-
-                returnParameter = new SqlParameter("@RETURN_VALUE", SqlDbType.Int)
-                    { Direction = ParameterDirection.ReturnValue };
-
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-
-        dbCommand.Parameters.Add(returnParameter);
-
-        if (parameters != null)
-        {
-            foreach (var sqlParameter in parameters)
-            {
-                dbCommand.Parameters.Add(sqlParameter);
-            }
-        }
-
-        if (dbCommand.Connection != null
-            && dbCommand.Connection.State != ConnectionState.Open)
-        {
-            dbCommand.Connection.Open();
-        }
-
-        dbCommand.ExecuteNonQuery();
-
-        dbCommand.Connection?.Close();
-
-        return Convert.ToInt32(returnParameter.Value);
+        return ExecuteInternal(command, parameters, connectionName, dbCommandType).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -667,21 +260,8 @@ public class DataAccess
     /// <returns>
     /// Object containing the result
     /// </returns>
-    public static object ExecuteScalar(string command,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (Environment.Connections.DefaultConnection == null)
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return ExecuteScalar(command, null, Environment.Connections.DefaultConnection.ConnectionName);
-    }
+    public static object ExecuteScalar(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteScalar(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Executes the provided procedure and returns a single value.
@@ -692,21 +272,8 @@ public class DataAccess
     /// <returns>
     /// Object containing the result
     /// </returns>
-    public static object ExecuteScalar(string command, Parameters parameters,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (Environment.Connections.DefaultConnection == null)
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return ExecuteScalar(command, parameters, Environment.Connections.DefaultConnection.ConnectionName);
-    }
+    public static object ExecuteScalar(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteScalar(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Executes the provided command and returns a single value.
@@ -720,60 +287,11 @@ public class DataAccess
     /// Object containing the result
     /// </returns>
     // ReSharper disable once MemberCanBePrivate.Global
-    public static object ExecuteScalar(string command, Parameters parameters, string connectionName,
+    public static object ExecuteScalar(string command, Parameters? parameters, string connectionName = "default", 
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
         ValidateConnection(connectionName);
-
-        DbCommand dbCommand;
-        var dbServerType = Environment.Connections[connectionName].DbServerType;
-        var connectionString = Environment.Connections[connectionName].ConnectionString;
-
-        switch (dbServerType)
-        {
-            case DbServerType.postgresql:
-                dbCommand = new NpgsqlCommand(command, new NpgsqlConnection(connectionString))
-                {
-                    CommandType = dbCommandType,
-                    CommandTimeout = COMMAND_TIMEOUT
-                };
-                break;
-            case DbServerType.mssql:
-                dbCommand = new SqlCommand(command, new SqlConnection(connectionString))
-                {
-                    CommandType = dbCommandType,
-                    CommandTimeout = COMMAND_TIMEOUT
-                };
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-
-        if (parameters != null)
-        {
-            foreach (var sqlParameter in parameters)
-            {
-                dbCommand.Parameters.Add(sqlParameter);
-            }
-        }
-
-        if (dbCommand.Connection != null
-            && dbCommand.Connection.State != ConnectionState.Open)
-        {
-            dbCommand.Connection.Open();
-        }
-
-        var obj = dbCommand.ExecuteScalar();
-
-        dbCommand.Connection?.Close();
-
-        return obj;
+        return ExecuteScalarInternal(command, parameters, connectionName, dbCommandType).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -786,22 +304,8 @@ public class DataAccess
     /// Object containing the result
     /// </returns>
     /// <exception cref="DefaultConnectionNotDefined">The Default Connection has not been defined. Please define prior to use.</exception>
-    public static T ExecuteScalar<T>(string command,
-        CommandType dbCommandType = CommandType.StoredProcedure)
-    {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
-        if (Environment.Connections.DefaultConnection == null)
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return ExecuteScalar<T>(command, null, Environment.Connections.DefaultConnection.ConnectionName,
-                dbCommandType);
-    }
+    public static T ExecuteScalar<T>(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteScalar<T>(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
 
     /// <summary>
     /// Executes the provided procedure and returns a single value using the default connection.
@@ -814,21 +318,221 @@ public class DataAccess
     /// Result as T
     /// </returns>
     /// <exception cref="DefaultConnectionNotDefined">The Default Connection has not been defined. Please define prior to use.</exception>
-    public static T ExecuteScalar<T>(string command, Parameters parameters,
+    public static T ExecuteScalar<T>(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteScalar<T>(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    /// <summary>
+    /// Executes the provided procedure and returns a single value.
+    /// </summary>
+    /// <typeparam name="T">Return Type</typeparam>
+    /// <param name="command">SQL Command to execute</param>
+    /// <param name="parameters">Parameter list</param>
+    /// <param name="connectionName">Connection key/name</param>
+    /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
+    /// <returns>
+    /// Result as T
+    /// </returns>
+    public static T ExecuteScalar<T>(string command, Parameters? parameters, string connectionName = "default", 
         CommandType dbCommandType = CommandType.StoredProcedure)
     {
-        if (!Environment.IsInitialized)
+        ValidateConnection(connectionName);
+        return ExecuteScalarInternal<T>(command, parameters, connectionName, dbCommandType).GetAwaiter().GetResult();
+    }
+    
+    #region Public Asynchronous API (recommended for new code)
+
+    //TODO: Add XML comments
+    public static Task<T> GetEntityAsync<T>(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetEntityAsync<T>(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static Task<T> GetEntityAsync<T>(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetEntityAsync<T>(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static async Task<T> GetEntityAsync<T>(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+        => (await GetDataTableAsync(command, parameters, connectionName, dbCommandType)).ToEntity<T>();
+
+    public static Task<IList<T>> GetEntityListAsync<T>(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetEntityListAsync<T>(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static Task<IList<T>> GetEntityListAsync<T>(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetEntityListAsync<T>(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static async Task<IList<T>> GetEntityListAsync<T>(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+        => (await GetDataTableAsync(command, parameters, connectionName, dbCommandType)).ToEntities<T>().ToList();
+
+    public static Task<DataSet> GetDataSetAsync(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataSetAsync(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static Task<DataSet> GetDataSetAsync(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataSetAsync(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static async Task<DataSet> GetDataSetAsync(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        ValidateConnection(connectionName);
+        return await FillDataSet(command, parameters, connectionName, dbCommandType);
+    }
+
+    public static Task<DataTable> GetDataTableAsync(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataTableAsync(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static Task<DataTable> GetDataTableAsync(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataTableAsync(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static async Task<DataTable> GetDataTableAsync(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+        => (await GetDataSetAsync(command, parameters, connectionName, dbCommandType)).Tables[0];
+
+    public static Task<DbDataReader> GetDataReaderAsync(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataReaderAsync(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static Task<DbDataReader> GetDataReaderAsync(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => GetDataReaderAsync(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static async Task<DbDataReader> GetDataReaderAsync(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        ValidateConnection(connectionName);
+        return await CreateDataReader(command, parameters, connectionName, dbCommandType);
+    }
+
+    public static Task<int> ExecuteAsync(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteAsync(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static Task<int> ExecuteAsync(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteAsync(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static async Task<int> ExecuteAsync(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        ValidateConnection(connectionName);
+        return await ExecuteInternal(command, parameters, connectionName, dbCommandType);
+    }
+
+    public static Task<object> ExecuteScalarAsync(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteScalarAsync(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static Task<object> ExecuteScalarAsync(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteScalarAsync(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static async Task<object> ExecuteScalarAsync(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        ValidateConnection(connectionName);
+        return await ExecuteScalarInternal(command, parameters, connectionName, dbCommandType);
+    }
+
+    public static Task<T> ExecuteScalarAsync<T>(string command, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteScalarAsync<T>(command, null, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static Task<T> ExecuteScalarAsync<T>(string command, Parameters? parameters, CommandType dbCommandType = CommandType.StoredProcedure)
+        => ExecuteScalarAsync<T>(command, parameters, Environment.Connections.DefaultConnection.ConnectionName, dbCommandType);
+
+    public static async Task<T> ExecuteScalarAsync<T>(string command, Parameters? parameters, string connectionName, CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        ValidateConnection(connectionName);
+        var result = await ExecuteScalarInternal(command, parameters, connectionName, dbCommandType);
+        return (T)result!;
+    }
+
+    #endregion
+    
+    #region Private Helpers
+
+    /// <summary>
+    /// Returns a filled dataset
+    /// </summary>
+    /// <param name="command">SQL Command to execute</param>
+    /// <param name="parameters">Parameters</param>
+    /// <param name="connectionName">Connection key/name</param>
+    /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
+    /// <returns/>
+    private static async Task<DataSet> FillDataSet(string command, IEnumerable<DbParameter>? parameters,
+        string connectionName = "default", CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        ValidateConnection(connectionName);
+        var connProps = Environment.Connections[connectionName];
+        var dataSet = new DataSet();
+
+        await using var connection = connProps.DbServerType == DbServerType.postgresql
+            ? (DbConnection)new NpgsqlConnection(connProps.ConnectionString)
+            : new SqlConnection(connProps.ConnectionString);
+
+        await connection.OpenAsync();
+
+        await using var cmd = CreateCommand(command, connection, dbCommandType, parameters, connProps.DbServerType);
+
+        var adapter = connProps.DbServerType == DbServerType.postgresql
+            ? (DbDataAdapter)new NpgsqlDataAdapter((NpgsqlCommand)cmd)
+            : new SqlDataAdapter((SqlCommand)cmd);
+
+        adapter.Fill(dataSet);
+        return dataSet;
+    }
+
+    private static DbCommand CreateCommand(string commandText, DbConnection connection, CommandType commandType,
+        IEnumerable<DbParameter>? parameters, DbServerType serverType)
+    {
+        DbCommand cmd = serverType == DbServerType.postgresql
+            ? new NpgsqlCommand(commandText, (NpgsqlConnection)connection)
+            : new SqlCommand(commandText, (SqlConnection)connection);
+
+        cmd.CommandType = commandType;
+        cmd.CommandTimeout = CommandTimeout;
+
+        if (parameters != null)
         {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
+            foreach (var p in parameters)
+            {
+                cmd.Parameters.Add(p);
+            }
         }
 
-        if (Environment.Connections.DefaultConnection == null)
-            throw new DefaultConnectionNotDefined(
-                "The Default Connection has not been defined. Please define prior to use.");
-        else
-            return ExecuteScalar<T>(command, parameters, Environment.Connections.DefaultConnection.ConnectionName,
-                dbCommandType);
+        return cmd;
+    }
+
+    /// <summary>
+    /// Executes the provided command and returns an open DataReader.
+    /// </summary>
+    /// <param name="command">SQL Command to execute</param>
+    /// <param name="parameters">Parameter list</param>
+    /// <param name="connectionName">Connection key/name</param>
+    /// <param name="dbCommandType">SQL command type. Defaults to <see cref="CommandType.StoredProcedure"/>.</param>
+    private static async Task<DbDataReader> CreateDataReader(string command, Parameters? parameters,
+        string connectionName = "default", CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        ValidateConnection(connectionName);
+        var connProps = Environment.Connections[connectionName];
+
+        await using var connection = connProps.DbServerType == DbServerType.postgresql
+            ? (DbConnection)new NpgsqlConnection(connProps.ConnectionString)
+            : new SqlConnection(connProps.ConnectionString);
+
+        await connection.OpenAsync();
+
+        await using var cmd = CreateCommand(command, connection, dbCommandType, parameters, connProps.DbServerType);
+
+        return await cmd.ExecuteReaderAsync(CommandBehavior.CloseConnection);
+    }
+
+    private static async Task<int> ExecuteInternal(string command, Parameters? parameters,
+        string connectionName = "default", CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        ValidateConnection(connectionName);
+        var connProps = Environment.Connections[connectionName];
+
+        await using var connection = connProps.DbServerType == DbServerType.postgresql
+            ? (DbConnection)new NpgsqlConnection(connProps.ConnectionString)
+            : new SqlConnection(connProps.ConnectionString);
+
+        await connection.OpenAsync();
+
+        await using var cmd = CreateCommand(command, connection, dbCommandType, parameters, connProps.DbServerType);
+
+        DbParameter returnParameter = connProps.DbServerType == DbServerType.postgresql
+            ? new NpgsqlParameter("p_out", NpgsqlDbType.Integer) { Direction = ParameterDirection.Output }
+            : new SqlParameter("@RETURN_VALUE", SqlDbType.Int) { Direction = ParameterDirection.ReturnValue };
+
+        cmd.Parameters.Add(returnParameter);
+
+        await cmd.ExecuteNonQueryAsync();
+
+        return Convert.ToInt32(returnParameter.Value);
     }
 
     /// <summary>
@@ -842,64 +546,30 @@ public class DataAccess
     /// <returns>
     /// Result as T
     /// </returns>
-    // ReSharper disable once MemberCanBePrivate.Global
-    public static T ExecuteScalar<T>(string command, Parameters parameters, string connectionName,
-        CommandType dbCommandType = CommandType.StoredProcedure)
+    private static async Task<object> ExecuteScalarInternal(string command, Parameters? parameters,
+        string connectionName = "default", CommandType dbCommandType = CommandType.StoredProcedure)
     {
-        if (!Environment.IsInitialized)
-        {
-            throw new DataNotInitialized(
-                "The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
-        }
-
         ValidateConnection(connectionName);
+        var connProps = Environment.Connections[connectionName];
 
-        DbCommand dbCommand;
-        var dbServerType = Environment.Connections[connectionName].DbServerType;
-        var connectionString = Environment.Connections[connectionName].ConnectionString;
+        await using var connection = connProps.DbServerType == DbServerType.postgresql
+            ? (DbConnection)new NpgsqlConnection(connProps.ConnectionString)
+            : new SqlConnection(connProps.ConnectionString);
 
-        switch (dbServerType)
-        {
-            case DbServerType.postgresql:
-                dbCommand = new NpgsqlCommand(command, new NpgsqlConnection(connectionString))
-                {
-                    CommandType = dbCommandType,
-                    CommandTimeout = COMMAND_TIMEOUT
-                };
-                break;
-            case DbServerType.mssql:
-                dbCommand = new SqlCommand(command, new SqlConnection(connectionString))
-                {
-                    CommandType = dbCommandType,
-                    CommandTimeout = COMMAND_TIMEOUT
-                };
+        await connection.OpenAsync();
 
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
+        await using var cmd = CreateCommand(command, connection, dbCommandType, parameters, connProps.DbServerType);
 
-        if (parameters != null)
-        {
-            foreach (var sqlParameter in parameters)
-            {
-                dbCommand.Parameters.Add(sqlParameter);
-            }
-        }
-
-        if (dbCommand.Connection != null
-            && dbCommand.Connection.State != ConnectionState.Open)
-        {
-            dbCommand.Connection.Open();
-        }
-
-        var obj = dbCommand.ExecuteScalar();
-
-        dbCommand.Connection?.Close();
-
-        return (T)obj;
+        var result = await cmd.ExecuteScalarAsync();
+        return result ?? DBNull.Value;
     }
 
+    private static async Task<T> ExecuteScalarInternal<T>(string command, Parameters? parameters,
+        string connectionName = "default", CommandType dbCommandType = CommandType.StoredProcedure)
+    {
+        var result = await ExecuteScalarInternal(command, parameters, connectionName, dbCommandType);
+        return result is DBNull or null ? default! : (T)result;
+    }
 
     /// <summary>
     /// Validates that given connections keys/names are valid
@@ -907,11 +577,12 @@ public class DataAccess
     /// <param name="connectionName">Name of connection properties stored internally.</param>
     private static void ValidateConnection(string connectionName)
     {
-        if (connectionName == string.Empty)
+        if (string.IsNullOrEmpty(connectionName))
             throw new UnknownConnection("Connection key/name cannot be empty.");
 
         if (!Environment.Connections[connectionName].IsValid())
-            throw new UnknownConnection("Connection key/name '" + connectionName +
-                                        "' refers to an unknown connection.");
+            throw new UnknownConnection($"Unknown connection name: '{connectionName}'");
     }
+
+    #endregion
 }

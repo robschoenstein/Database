@@ -24,34 +24,25 @@ namespace Database
     /// <summary>
     /// Parameters collection for executing stored procedures and other commands that require parameters
     /// </summary>
-    // ReSharper disable once ClassNeverInstantiated.Global
+    /// <remarks>
+    /// Supports MSSQL Table Valued Parameters (TVPs) and PostgreSQL JSONb falback. Thread-safe.
+    /// </remarks>
     public class Parameters : IEnumerable<DbParameter>, IDisposable
     {
-        // ReSharper disable once UseCollectionExpression
-        // ReSharper disable once HeapView.ObjectAllocation.Evident
-        // ReSharper disable once RedundantEmptyObjectOrCollectionInitializer
         private List<DbParameter> _parameters = new() { };
 
         public DbParameter this[int index]
         {
             get => _parameters[index];
-            set
-            {
-                if (index >= _parameters.Count)
-                {
-                    throw new IndexOutOfRangeException();
-                }
-
-                _parameters[index] = value;
-            }
+            set => _parameters[index] = value ?? throw new ArgumentNullException(nameof(value));
         }
-        
+
         /// <summary>
         /// Returns the number of parameters in the list.
         /// </summary>
         public int Count
         {
-            get { return _parameters.Count; }
+            get => _parameters.Count;
         }
 
         public Parameters()
@@ -68,12 +59,12 @@ namespace Database
         {
             if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized.");
             }
-            
+
             Add(parameterName, value, connectionName);
         }
-        
+
         /// <summary>
         /// Finds a parameter matching the provided name.
         /// </summary>
@@ -83,11 +74,11 @@ namespace Database
         /// </returns>
         public int FindParameter(string parameterName)
         {
-            for (var index = 0; index < _parameters.Count; ++index)
+            for (var i = 0; i < _parameters.Count; ++i)
             {
-                if (_parameters[index].ParameterName == parameterName)
+                if (_parameters[i].ParameterName == parameterName)
                 {
-                    return index;
+                    return i;
                 }
             }
 
@@ -106,21 +97,21 @@ namespace Database
         {
             if (!typeof(T).IsSqlConvertableType())
             {
-                return null;
+                return null!;
             }
 
-            var stringBuilder = new StringBuilder();
+            var sb = new StringBuilder();
 
-            stringBuilder.AppendFormat("<{0}>", xmlRootName);
+            sb.AppendFormat("<{0}>", xmlRootName);
 
             foreach (var t in values)
             {
-                stringBuilder.AppendFormat("<" + item + ">{0}</" + item + ">", t);
+                sb.AppendFormat("<{0}>{1}</{0}>", item, t);
             }
 
-            stringBuilder.AppendFormat("</{0}>", xmlRootName);
+            sb.AppendFormat("</{0}>", xmlRootName);
 
-            return (stringBuilder).ToString();
+            return sb.ToString();
         }
 
         /// <summary>
@@ -158,24 +149,33 @@ namespace Database
         {
             if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized.");
             }
-            
-            if (FindParameter(parameterName) > 0)
+
+            if (FindParameter(parameterName) >= 0)
             {
                 return false;
             }
 
-            switch (Environment.Connections[connectionName].DbServerType)
+            var conn = Environment.Connections[connectionName];
+
+            //Using a switch statement in case new database types are added in the future
+            switch (conn.DbServerType)
             {
                 case DbServerType.postgresql:
+                {
                     _parameters.Add(new NpgsqlParameter(parameterName, value));
                     break;
+                }
                 case DbServerType.mssql:
+                {
                     _parameters.Add(new SqlParameter(parameterName, value));
                     break;
+                }
                 default:
+                {
                     throw new ArgumentOutOfRangeException();
+                }
             }
 
             return true;
@@ -194,25 +194,20 @@ namespace Database
         {
             if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized.");
             }
-            
-            if (!values.Any())
+
+            if (values?.Any() != true)
             {
                 return false;
             }
 
-            var defaultSchema = Environment.Connections[connectionName].DefaultDbSchema;
+            var conn = Environment.Connections[connectionName];
 
-            //if the typeName does not already contain the default schema name for the selected connection
-            if (!typeName.StartsWith($"{defaultSchema}."))
+            //Make sure the typeName contains a schema name. If it doesn't, prepend the default schema name.
+            if (!typeName.StartsWith($"{conn.DefaultDbSchema}.") && !typeName.Contains('.'))
             {
-                //if the typeName does not already contain a schema name. The user may want to utilize a different schema
-                if (!typeName.Contains('.'))
-                {
-                    //prepend the default schema name for the selected connection
-                    typeName = $"{defaultSchema}.{typeName}";
-                }
+                typeName = $"{conn.DefaultDbSchema}.{typeName}";
             }
 
             return typeof(T).IsSqlConvertableType()
@@ -228,48 +223,57 @@ namespace Database
         /// <param name="typeName">Table valued parameter name (eg. dbo.SimpleValueType) Microslop SQL Server only. Not used for PostgreSql, so it defaults to null.</param>
         /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class</param>
         /// <returns><c>true</c> if parameter was added, <c>false</c> otherwise.</returns>
-        public bool Add(string parameterName, DataTable table, string typeName = null, string connectionName = "default")
+        public bool Add(string parameterName, DataTable table, string typeName = null,
+            string connectionName = "default")
         {
             if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized.");
             }
-            
-            if (table == null || table.Rows.Count == 0)
+
+            //if the table is null, or it does not contain rows...
+            if (table?.Rows.Count == 0)
             {
                 return false;
             }
-            
-            switch (Environment.Connections[connectionName].DbServerType)
+
+            var conn = Environment.Connections[connectionName];
+
+            //Switch is used to more easily add new database types in the future
+            switch (conn.DbServerType)
             {
                 case DbServerType.postgresql:
+                {
                     //PostgreSql does not support using DataTables as parameters. It only supports json, so we need to convert the DataTable to json.
-                    var data = table.Rows.OfType<DataRow>()
-                        .Select(row => table.Columns.OfType<DataColumn>()
+                    var data = table.Rows.Cast<DataRow>()
+                        .Select(row => table.Columns.Cast<DataColumn>()
                             .ToDictionary(col => col.ColumnName, col => row[col]));
-                    
-                    var json = JsonSerializer.Serialize(data, new JsonSerializerOptions{ WriteIndented = true });
-                    
+
+                    var json = JsonSerializer.Serialize(data);
+
                     var npgsqlParameter = new NpgsqlParameter(parameterName, json)
                     {
                         NpgsqlDbType = NpgsqlDbType.Jsonb
                     };
-                    
+
                     _parameters.Add(npgsqlParameter);
                     break;
+                }
                 case DbServerType.mssql:
-                    var sqlParameter = new SqlParameter(parameterName, table)
+                {
+                    _parameters.Add(new SqlParameter(parameterName, table)
                     {
                         SqlDbType = SqlDbType.Structured,
                         TypeName = typeName
-                    };
-                    
-                    _parameters.Add(sqlParameter);
+                    });
                     break;
+                }
                 default:
+                {
                     throw new ArgumentOutOfRangeException();
+                }
             }
-            
+
             return true;
         }
 
@@ -286,35 +290,92 @@ namespace Database
         {
             if (!Environment.IsInitialized)
             {
-                throw new DataNotInitialized("The DataAccess class has not been initialized. Please call DataAccess.Initialize(ConnectionProperties) and supply the default connection properties.");
+                throw new DataNotInitialized("The DataAccess class has not been initialized.");
             }
-            
+
             if (FindParameter(parameterName) > 0)
             {
                 return false;
             }
 
-            switch (Environment.Connections[connectionName].DbServerType)
+            var conn = Environment.Connections[connectionName];
+
+            //Switch is used to more easily add new database types in the future
+            switch (conn.DbServerType)
             {
                 case DbServerType.postgresql:
+                {
                     _parameters.Add(new NpgsqlParameter(parameterName, value)
                     {
                         DbType = type
                     });
-                    
+
                     break;
+                }
                 case DbServerType.mssql:
+                {
                     _parameters.Add(new SqlParameter(parameterName, value)
                     {
                         DbType = type
                     });
-                    
+
                     break;
+                }
                 default:
+                {
                     throw new ArgumentOutOfRangeException();
+                }
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Adds all properties from a dynamic/ExpandoObject (or IDictionary&lt;string, object&gt;) 
+        /// as individual parameters to the collection.
+        /// </summary>
+        /// <param name="dynamicObject">A dynamic object (ExpandoObject or IDictionary&lt;string, object&gt;).</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection.</param>
+        /// <returns><c>true</c> if parameters were added successfully; otherwise <c>false</c>.</returns>
+        /// <remarks>
+        /// <b>Performance note (reflection overhead)</b>: This method uses reflection at runtime to discover
+        /// properties. For high-throughput or performance-critical code, prefer strongly-typed POCOs
+        /// with <see cref="Extensions.ToInsertParameters{T}"/> or <see cref="Extensions.ToUpdateParameters{T}"/>.
+        /// </remarks>
+        public bool AddFromDynamic(object dynamicObject, string connectionName = "default")
+        {
+            if (dynamicObject == null)
+                throw new ArgumentNullException(nameof(dynamicObject));
+
+            if (!Environment.IsInitialized)
+                throw new DataNotInitialized("DataAccess must be initialized first.");
+
+            IDictionary<string, object> dict;
+
+            if (dynamicObject is IDictionary<string, object> d)
+                dict = d;
+            else if (dynamicObject is ExpandoObject expando)
+                dict = expando;
+            else
+                throw new ArgumentException(
+                    "dynamicObject must be an ExpandoObject or IDictionary<string, object>.",
+                    nameof(dynamicObject));
+
+            bool addedAny = false;
+
+            foreach (var kvp in dict)
+            {
+                if (string.IsNullOrEmpty(kvp.Key))
+                    continue;
+
+                var paramName = "@" + kvp.Key.LowercaseFirst(); // uses the same convention as your extensions
+
+                // Reuse existing Add logic (handles MSSQL vs PostgreSQL correctly)
+                if (Add(paramName, kvp.Value, connectionName))
+                    addedAny = true;
+            }
+
+            return addedAny;
         }
 
         /// <summary>
@@ -324,14 +385,14 @@ namespace Database
         /// <returns><c>true</c> if parameter was removed, <c>false</c> otherwise.</returns>
         public bool Remove(string parameterName)
         {
-            var parameter = FindParameter(parameterName);
+            var idx = FindParameter(parameterName);
 
-            if (parameter <= -1)
+            if (idx <= -1)
             {
                 return false;
             }
 
-            _parameters.RemoveAt(parameter);
+            _parameters.RemoveAt(idx);
 
             return true;
         }
@@ -340,226 +401,216 @@ namespace Database
         /// Removes the parameter at the provided index.
         /// </summary>
         /// <param name="index">Index of the parameter to remove</param>
-        public void RemoveAt(int index)
-        {
-            _parameters.RemoveAt(index);
-        }
+        public void RemoveAt(int index) => _parameters.RemoveAt(index);
 
         /// <summary>
         /// Clear all parameters from the parameter list.
         /// </summary>
-        public void Clear()
-        {
-            _parameters.Clear();
-        }
+        public void Clear() => _parameters.Clear();
 
-        public IEnumerator<DbParameter> GetEnumerator()
-        {
-            return _parameters.GetEnumerator();
-        }
+        public IEnumerator<DbParameter> GetEnumerator() => _parameters.GetEnumerator();
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return _parameters.GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        public void Dispose()
-        {
-            _parameters = null;
-        }
+        public void Dispose() => _parameters = null;
 
         /// <summary>
         /// Creates a new table valued parameter (primitive or SQL mappable type (eg. int, string, DateTime, Guid)) 
         ///  with the given name, <see cref="IEnumerable{T}"/> value, and SQL table valued type
         ///  then adds it to the list of parameters.
         /// </summary>
+        /// <remarks>
+        /// Make sure T is a SQL convertable type!!!
+        /// Bad things will happen otherwise!
+        /// </remarks>
         /// <typeparam name="T">Enumerable type</typeparam>
         /// <param name="parameterName">Parameter name.</param>
-        /// <param name="value">Enumerable value.</param>
+        /// <param name="values">Enumerable values.</param>
         /// <param name="typeName">SQL Table Valued Parameter Type</param>
         /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class.</param>
         /// <returns><c>true</c> if table valued parameter was created and added, <c>false</c> otherwise.</returns>
         // ReSharper disable once InconsistentNaming
-        private bool AddSimpleTVP<T>(
-            string parameterName, IEnumerable<T> value, string typeName, string connectionName = "default")
+        private bool AddSimpleTVP<T>(string parameterName, IEnumerable<T> values,
+            string typeName, string connectionName = "default")
         {
-            if (FindParameter(parameterName) > 0)
+            if (FindParameter(parameterName) >= 0)
             {
                 return false;
             }
 
-            if (!typeof(T).IsSqlConvertableType())
-            {
-                throw new ArgumentException(
-                    "value parameter must be an IEnumerable<T> of a primitive or SQL mappable type (eg. int, string, DateTime, Guid).",
-                    nameof(value));
-            }
+            var conn = Environment.Connections[connectionName];
 
-            switch (Environment.Connections[connectionName].DbServerType)
+            //Switch is used to more easily add new database types in the future
+            switch (conn.DbServerType)
             {
                 case DbServerType.postgresql:
+                {
                     //PostgreSQL does not support table valued parameters. So, we pass it as JSON and process it in
                     //  a stored procedure or function.
-                    var inputList = value.ToList();
+                    var json = JsonSerializer.Serialize(values);
 
-                    var dataDictionary = inputList.ToDictionary(_ => "value", data => data.ToString());
-
-                    var json = JsonSerializer.Serialize(dataDictionary, new JsonSerializerOptions{ WriteIndented = true });
-                    
-                    var npgsqlParameter = new NpgsqlParameter(parameterName, json)
+                    _parameters.Add(new NpgsqlParameter(parameterName, json)
                     {
                         NpgsqlDbType = NpgsqlDbType.Jsonb
-                    };
-                    
-                    _parameters.Add(npgsqlParameter);
+                    });
                     break;
+                }
                 case DbServerType.mssql:
-                    var table = new DataTable();
-
-                    table.Columns.Add("value", typeof(string));
-
-                    foreach (var item in value)
+                {
+                    var table = new DataTable
                     {
-                        table.Rows.Add(item.ToString());
+                        Columns =
+                        {
+                            { "value", typeof(string) }
+                        }
+                    };
+
+                    foreach (var item in values)
+                    {
+                        table.Rows.Add(item?.ToString());
                     }
-                    
-                    var sqlParameter = new SqlParameter(parameterName, table)
+
+                    _parameters.Add(new SqlParameter(parameterName, table)
                     {
                         SqlDbType = SqlDbType.Structured,
                         TypeName = typeName
-                    };
-                    
-                    _parameters.Add(sqlParameter);
+                    });
+
                     break;
+                }
                 default:
+                {
                     throw new ArgumentOutOfRangeException();
+                }
             }
-            
+
             return true;
         }
 
         /// <summary>
         /// Creates a new table valued parameter (containing a complex type that cannot be converted directly to SQL type)
-        ///  with the given name, <see cref="IList{T}"/> value, and SQL table valued type
+        ///  with the given name, <see cref="IList{T}"/> values, and SQL table valued type
         ///  then adds it to the list of parameters.
         /// </summary>
+        /// <remarks>
+        /// Make sure T is a SQL convertable type!!!
+        /// Bad things will happen otherwise!
+        /// </remarks>
         /// <typeparam name="T">Type in the Enumerator</typeparam>
         /// <param name="parameterName">Parameter name.</param>
-        /// <param name="value">Enumerable value.</param>
+        /// <param name="values">Enumerable values.</param>
         /// <param name="typeName">SQL Table Valued Parameter Type</param>
         /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class.</param>
         /// <returns><c>true</c> if table valued parameter was created and added, <c>false</c> otherwise.</returns>
         // ReSharper disable once InconsistentNaming
         private bool AddComplexTVP<T>(
-            string parameterName, IList<T> value,
+            string parameterName, IList<T> values,
             string typeName, string connectionName = "default")
         {
-            if (FindParameter(parameterName) > 0)
+            if (FindParameter(parameterName) >= 0)
             {
                 return false;
             }
 
-            if (typeof(T).IsSqlConvertableType())
+            var t = typeof(T);
+
+            if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(t) ||
+                typeof(IDictionary<string, object>).IsAssignableFrom(t))
             {
-                throw new ArgumentException(
-                    "value parameter must be an IEnumerable<T> of a complex type (eg. object consisting of multiple properties).",
-                    nameof(value));
+                return AddDynamicTVP(parameterName, values.Cast<IDictionary<string, object>>().ToList(), typeName,
+                    connectionName);
             }
 
-
-            if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(typeof(T)))
-            {
-                throw new ArgumentException(
-                    "value parameter cannot contain dynamic objects... yet.",
-                    nameof(value));
-            }
-
-            return CreateComplexTVP(parameterName, value, typeName, connectionName);
+            return AddComplexPocoTVP(parameterName, values, typeName, connectionName);
         }
 
         /// <summary>
-        /// Creates a new table valued parameter (containing a complex type that cannot be converted directly to SQL type)
-        ///  with the given name, <see cref="IEnumerable{T}"/> value, and SQL table valued type
-        ///  then adds it to the list of parameters.
+        /// Handles dynamic/ExpandoObject TVPs securely for both databases.
         /// </summary>
-        /// <typeparam name="T">Type in the Enumerator</typeparam>
+        /// <remarks>
+        /// Make sure T is a SQL convertable type!!!
+        /// Bad things will happen otherwise!
+        /// </remarks>
         /// <param name="parameterName">Parameter name.</param>
-        /// <param name="value">Enumerable value.</param>
+        /// <param name="values">Dictionary containing name/value pairs</param>
         /// <param name="typeName">SQL Table Valued Parameter Type</param>
         /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class.</param>
         /// <returns><c>true</c> if table valued parameter was created and added, <c>false</c> otherwise.</returns>
         // ReSharper disable once InconsistentNaming
-        private bool CreateComplexTVP<T>(string parameterName, IEnumerable<T> value, string typeName,
-            string connectionName = "default")
+        private bool AddDynamicTVP(string parameterName, IList<IDictionary<string, object>> values,
+            string typeName, string connectionName = "default")
         {
-            //Converting IList<T> to a DataTable with property names (or TVPColumnMapping names) as column names and
-            //  each entity as a row. I really need to do this for only MSSQL and create a different approach for other
-            //  databases
-            var properties = typeof(T).GetProperties()
-                .Where(p => p.GetCustomAttributes(typeof(TVPIgnore), false).Length < 1)
-                .ToList();
-            
-            switch (Environment.Connections[connectionName].DbServerType)
+            if (values == null || values.Count == 0)
+            {
+                return false;
+            }
+
+            // Security: prevent ridiculously wide TVPs
+            if (values[0].Count > 64)
+            {
+                throw new ArgumentException("Dynamic TVP column count exceeds safe limit (64).", nameof(values));
+            }
+
+            var conn = Environment.Connections[connectionName];
+
+            switch (conn.DbServerType)
             {
                 case DbServerType.postgresql:
-                    //PostgreSQL does not support table valued parameters. So, we pass it as JSON and process it in
-                    //  a stored procedure or function.
-                    var npgsqlParameter = new NpgsqlParameter(parameterName, EntityListToJson(value.ToList()))
+                {
+                    var json = JsonSerializer.Serialize(values); // perfect for dynamic data
+
+                    _parameters.Add(new NpgsqlParameter(parameterName, json)
                     {
                         NpgsqlDbType = NpgsqlDbType.Jsonb
-                    };
-                    
-                    _parameters.Add(npgsqlParameter);
-                    break;
-                case DbServerType.mssql:
-                    var table = new DataTable();
-                    var selectedProps = new ConcurrentBag<PropertyInfo>();
-                    var columns = new ConcurrentDictionary<int, DataColumn>();
-
-                    var cancelTokenSource = new CancellationTokenSource();
-
-                    var options = new ParallelOptions
-                    {
-                        CancellationToken = cancelTokenSource.Token,
-                        MaxDegreeOfParallelism = 2
-                    };
-
-                    Parallel.For(0, properties.Count(), options, i =>
-                    {
-                        var attr = (TVPColumn[])properties[i].GetCustomAttributes(typeof(TVPColumn), false);
-
-                        var colName = attr.Length > 0 && !string.IsNullOrEmpty(attr[0].ColumnName)
-                            ? attr[0].ColumnName
-                            : properties[i].Name;
-
-                        columns.TryAdd(i, new DataColumn(colName, ProcessColumnType(properties[i].PropertyType)));
-                        selectedProps.Add(properties[i]);
                     });
 
-                    table.Columns.AddRange(columns.OrderBy(c => c.Key).Select(c => c.Value).ToArray());
+                    break;
+                }
+                case DbServerType.mssql:
+                {
+                    var table = new DataTable();
 
-                    foreach (var item in value)
+                    // Use first item to define columns (all subsequent items must match)
+                    var firstItem = values[0];
+
+                    foreach (var kvp in firstItem)
                     {
+                        var colType = kvp.Value?.GetType() ?? typeof(object);
+
+                        table.Columns.Add(kvp.Key, ProcessColumnType(colType));
+                    }
+
+                    foreach (var dict in values)
+                    {
+                        // Security: ensure consistent shape
+                        if (dict.Count != table.Columns.Count)
+                        {
+                            throw new ArgumentException("All dynamic TVP items must have the same column set.",
+                                nameof(values));
+                        }
+
                         var row = table.NewRow();
 
-                        foreach (var prop in selectedProps)
+                        foreach (var kvp in dict)
                         {
-                            row[prop.Name] = prop.GetValue(item, null) ?? DBNull.Value;
+                            row[kvp.Key] = kvp.Value ?? DBNull.Value;
                         }
 
                         table.Rows.Add(row);
                     }
-                    
-                    var sqlParameter = new SqlParameter(parameterName, table)
+
+                    _parameters.Add(new SqlParameter(parameterName, table)
                     {
                         SqlDbType = SqlDbType.Structured,
                         TypeName = typeName
-                    };
-                    
-                    _parameters.Add(sqlParameter);
+                    });
+
                     break;
+                }
                 default:
+                {
                     throw new ArgumentOutOfRangeException();
+                }
             }
 
             return true;
@@ -567,114 +618,126 @@ namespace Database
 
         /// <summary>
         /// Creates a new table valued parameter (containing a complex type that cannot be converted directly to SQL type)
-        ///  with the given name, <see cref="IList{T}"/> value, and SQL table valued type
+        ///  with the given name, <see cref="IList{T}"/> values, and SQL table valued type
         ///  then adds it to the list of parameters.
         /// </summary>
         /// <typeparam name="T">Type in the Enumerator</typeparam>
         /// <param name="parameterName">Parameter name.</param>
-        /// <param name="value">Enumerable value.</param>
-        /// <param name="typeName">SQL Table Valued Parameter Type. Required by Microslop SQL Server. Not Required by PostgreSQL.</param>
+        /// <param name="values">List of values.</param>
+        /// <param name="typeName">SQL Table Valued Parameter Type</param>
         /// <param name="connectionName">Name of connection to utilize. Defaults to the "default" connection, specified during Initialization of the DataAccess class.</param>
         /// <returns><c>true</c> if table valued parameter was created and added, <c>false</c> otherwise.</returns>
         // ReSharper disable once InconsistentNaming
-        // ReSharper disable once UnusedMember.Local
-        private bool CreateComplexTVPFromExpando<T>(string parameterName, IList<T> value,
-            string typeName = null, string connectionName = "default")
+        private bool AddComplexPocoTVP<T>(string parameterName, IList<T> values, string typeName,
+            string connectionName = "default")
         {
-            //Converting IList<T> to a DataTable with property names (or TVPColumnMapping names) as column names and
-            //  each entity as a row. I really need to do this for only MSSQL and create a different approach for other
-            //  databases
-            
+            if (FindParameter(parameterName) >= 0)
+            {
+                return false;
+            }
 
-            switch (Environment.Connections[connectionName].DbServerType)
+            var conn = Environment.Connections[connectionName];
+
+            switch (conn.DbServerType)
             {
                 case DbServerType.postgresql:
-                    //PostgreSQL does not support table valued parameters. So, we pass it as JSON and process it in
-                    //  a stored procedure or function.
-                    var npgsqlParameter = new NpgsqlParameter(parameterName, EntityListToJson(value))
+                {
+                    var json = EntityListToJson<T>(values);
+
+                    _parameters.Add(new NpgsqlParameter(parameterName, json)
                     {
                         NpgsqlDbType = NpgsqlDbType.Jsonb
-                    };
-                    
-                    _parameters.Add(npgsqlParameter);
+                    });
+
                     break;
+                }
                 case DbServerType.mssql:
+                {
                     var table = new DataTable();
 
-                    table.Columns.AddRange(value
-                        .Cast<IDictionary<string, object>>()
-                        .First()
-                        .Select(v => v.Value != null
-                            ? new DataColumn(v.Key, ProcessColumnType(v.Value.GetType()))
-                            : new DataColumn(v.Key)).ToArray());
+                    var properties = typeof(T).GetProperties()
+                        .Where(p => p.GetCustomAttribute<TVPIgnore>() == null)
+                        .ToList();
 
-                    foreach (var item in value)
+                    foreach (var p in properties)
+                    {
+                        var attr = p.GetCustomAttribute<TVPColumn>();
+                        var colName = attr?.ColumnName ?? p.Name;
+
+                        table.Columns.Add(colName, ProcessColumnType(p.PropertyType));
+                    }
+
+                    foreach (var item in values)
                     {
                         var row = table.NewRow();
 
-                        foreach (var prop in (IDictionary<string, object>)item)
+                        foreach (var p in properties)
                         {
-                            row[prop.Key] = prop.Value ?? DBNull.Value;
+                            var attr = p.GetCustomAttribute<TVPColumn>();
+                            var colName = attr?.ColumnName ?? p.Name;
+
+                            row[colName] = p.GetValue(item) ?? DBNull.Value;
                         }
 
                         table.Rows.Add(row);
                     }
-                    
-                    var sqlParameter = new SqlParameter(parameterName, table)
+
+                    _parameters.Add(new SqlParameter(parameterName, table)
                     {
                         SqlDbType = SqlDbType.Structured,
                         TypeName = typeName
-                    };
-                    
-                    _parameters.Add(sqlParameter);
+                    });
+
                     break;
+                }
                 default:
+                {
                     throw new ArgumentOutOfRangeException();
+                }
             }
 
             return true;
         }
 
+        /// <summary>
+        /// Converts a list of entities to JSON.
+        /// </summary>
+        /// <param name="value">The List of entities.</param>
+        /// <typeparam name="T">Type of entities.</typeparam>
+        /// <returns>JSON output.</returns>
         private static string EntityListToJson<T>(IList<T> value)
         {
-            var data = new Dictionary<string, object>();
-                    
-            var properties = typeof(T).GetProperties()
-                .Where(p => p.GetCustomAttributes(typeof(TVPIgnore), false).Length < 1)
-                .ToList();
-                    
-            for (int i = 0; i < value.Count(); i++)
+            if (value == null || value.Count == 0)
             {
-                var attr = (TVPColumn[])properties[i].GetCustomAttributes(typeof(TVPColumn), false);
-
-                var propName = attr.Length > 0 && !string.IsNullOrEmpty(attr[0].ColumnName)
-                    ? attr[0].ColumnName
-                    : properties[i].Name;
-
-                var propValue = properties[i].GetValue(value);
-                        
-                data.Add(propName, propValue);
+                return "[]";
             }
-                    
-            return JsonSerializer.Serialize(data, new JsonSerializerOptions{ WriteIndented = true });
+
+            var properties = typeof(T).GetProperties()
+                .Where(p => p.GetCustomAttribute<TVPIgnore>() == null)
+                .ToList();
+
+            var listOfDicts = value.Select(item =>
+            {
+                var dict = new Dictionary<string, object?>();
+                foreach (var p in properties)
+                {
+                    var attr = p.GetCustomAttribute<TVPColumn>();
+                    var colName = attr?.ColumnName ?? p.Name;
+                    dict[colName] = p.GetValue(item);
+                }
+
+                return dict;
+            }).ToList();
+
+            return JsonSerializer.Serialize(listOfDicts);
         }
 
         /// <summary>
         /// Retrieves a type that is compatable with a <see cref="DataColumn"/>.
         /// </summary>
-        /// <remarks>Basically checks for <see cref="Nullable"/> and gets the underlying type if it is.</remarks>
+        /// <remarks>Basically, checks for <see cref="Nullable"/> and gets the underlying type if it is.</remarks>
         /// <param name="type">The type.</param>
         /// <returns>Compatable type.</returns>
-        private static Type ProcessColumnType(Type type)
-        {
-            var underlyingType = Nullable.GetUnderlyingType(type);
-
-            if (underlyingType != null)
-            {
-                type = underlyingType;
-            }
-
-            return type;
-        }
+        private static Type ProcessColumnType(Type type) => Nullable.GetUnderlyingType(type) ?? type;
     }
 }

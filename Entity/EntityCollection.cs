@@ -13,7 +13,7 @@ namespace Database.Entity;
 /// <typeparam name="T">Type to store in the entity collection</typeparam>
 public class EntityCollection<T> : IEntityCollection<T>
 {
-    protected IList<T> Entities { get; set; }
+    protected IList<T> Entities { get; set; } = new List<T>();
 
     /// <summary>
     /// Gets or sets the element at the specified index.
@@ -23,7 +23,12 @@ public class EntityCollection<T> : IEntityCollection<T>
     public T this[int index]
     {
         get => Entities[index];
-        set => Entities[index] = value;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            
+            Entities[index] = value;
+        }
     }
 
     /// <summary>
@@ -48,7 +53,6 @@ public class EntityCollection<T> : IEntityCollection<T>
     /// </summary>
     protected EntityCollection()
     {
-        Entities = new List<T>();
     }
 
     /// <summary>
@@ -57,10 +61,7 @@ public class EntityCollection<T> : IEntityCollection<T>
     /// <returns>
     /// An <see cref="T:System.Collections.IEnumerator" /> object that can be used to iterate through the collection.
     /// </returns>
-    public IEnumerator<T> GetEnumerator()
-    {
-        return Entities.GetEnumerator();
-    }
+    public IEnumerator<T> GetEnumerator() => Entities.GetEnumerator();
 
     /// <summary>
     /// Returns an enumerator that iterates through a collection.
@@ -68,10 +69,7 @@ public class EntityCollection<T> : IEntityCollection<T>
     /// <returns>
     /// An <see cref="T:System.Collections.IEnumerator" /> object that can be used to iterate through the collection.
     /// </returns>
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return GetEnumerator();
-    }
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     /// <summary>
     /// Adds the specified entity.
@@ -79,26 +77,27 @@ public class EntityCollection<T> : IEntityCollection<T>
     /// <param name="entity">The entity.</param>
     public void Add(T entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
+        
         Entities.Add(entity);
     }
 
     /// <summary>
     /// Clears the underlying list.
     /// </summary>
-    public void Clear()
-    {
-        Entities.Clear();
-    }
+    public void Clear() => Entities.Clear();
 
     /// <summary>
     /// Determines whether the underlying list contains the specified item.
     /// </summary>
-    /// <param name="item">The item.</param>
+    /// <param name="entity">The entity.</param>
     /// <returns>
     ///   <c>true</c> if [contains] [the specified item]; otherwise, <c>false</c>.
     /// </returns>
     public bool Contains(T entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
+        
         return Entities.Contains(entity);
     }
 
@@ -107,10 +106,7 @@ public class EntityCollection<T> : IEntityCollection<T>
     /// </summary>
     /// <param name="array">The array.</param>
     /// <param name="arrayIndex">Index of the array.</param>
-    public void CopyTo(T[] array, int arrayIndex)
-    {
-        Entities.CopyTo(array, arrayIndex);
-    }
+    public void CopyTo(T[] array, int arrayIndex) => Entities.CopyTo(array, arrayIndex);
 
     /// <summary>
     /// Removes the specified entity.
@@ -119,6 +115,8 @@ public class EntityCollection<T> : IEntityCollection<T>
     /// <returns><c>true</c> if [the specified entity] has been removed; otherwise, <c>false</c>.</returns>
     public bool Remove(T entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
+        
         return Entities.Remove(entity);
     }
 
@@ -129,6 +127,8 @@ public class EntityCollection<T> : IEntityCollection<T>
     /// <returns>Index of the entity</returns>
     public int IndexOf(T entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
+        
         return Entities.IndexOf(entity);
     }
 
@@ -139,6 +139,8 @@ public class EntityCollection<T> : IEntityCollection<T>
     /// <param name="entity">The entity.</param>
     public void Insert(int index, T entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
+        
         Entities.Insert(index, entity);
     }
 
@@ -146,10 +148,7 @@ public class EntityCollection<T> : IEntityCollection<T>
     /// Removes entity at the specified index.
     /// </summary>
     /// <param name="index">The index.</param>
-    public void RemoveAt(int index)
-    {
-        Entities.RemoveAt(index);
-    }
+    public void RemoveAt(int index) => Entities.RemoveAt(index);
 
     /// <summary>
     /// Removes all specified items from the underlying list.
@@ -159,7 +158,6 @@ public class EntityCollection<T> : IEntityCollection<T>
     public int RemoveAll(Predicate<T> match)
     {
         var existing = new List<T>(Entities);
-
         var value = existing.RemoveAll(match);
 
         Entities = existing;
@@ -183,28 +181,26 @@ public class EntityCollection<T> : IEntityCollection<T>
     }
 
     /// <summary>
-    /// Returns the underlying <see cref="IList"/> of entities
-    /// </summary>
-    /// <returns>Underlying <see cref="IList"/> of entities</returns>
-    public IList GetList()
-    {
-        return Entities.ToList();
-    }
-    
-    /// <summary>
     /// Clears the underlying list and adds the specified <see cref="DataTable"/> into the underlying collection.
     /// </summary>
     /// <param name="dataTable">The <see cref="DataTable"/>.</param>
     protected virtual void Load(DataTable dataTable)
     {
+        ArgumentNullException.ThrowIfNull(dataTable);
+        
         if (dataTable.Rows.Count < 1)
+        {
             return;
+        }
 
-        if (Entities == null)
-            Entities = new List<T>();
-        else
-            Entities.Clear();
+        Entities.Clear();
 
         AddRange(dataTable.ToEntities<T>());
     }
+    
+    /// <summary>
+    /// Returns the underlying <see cref="IList"/> of entities
+    /// </summary>
+    /// <returns>Underlying <see cref="IList"/> of entities</returns>
+    public IList GetList() => Entities.ToList();
 }

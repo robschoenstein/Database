@@ -1,46 +1,87 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using Database.Exceptions;
 
 namespace Database.Connection
 {
+    /// <summary>
+    /// Thread-safe collection of database connection properties.
+    /// Manages the default connection and any additional named connections.
+    /// </summary>
     public class ConnectionList
     {
-        private ConnectionProperties _defaultConnection;
-        private Hashtable _connections = new Hashtable();
+        private readonly Dictionary<string, ConnectionProperties> _connections = new(StringComparer.OrdinalIgnoreCase);
+        private ConnectionProperties _defaultConnection = null!;
 
-        public ConnectionList(ConnectionProperties connectionProperties)
+        /// <summary>
+        /// Creates the connection list with the default connection.
+        /// </summary>
+        public ConnectionList(ConnectionProperties defaultConnectionProperties)
         {
-            _defaultConnection = connectionProperties;
+            ArgumentNullException.ThrowIfNull(defaultConnectionProperties);
+            
+            _defaultConnection = defaultConnectionProperties;
             _connections.Add("default", _defaultConnection);
         }
 
+        /// <summary>
+        /// Gets or sets the default connection.
+        /// </summary>
         public ConnectionProperties DefaultConnection
         {
-            get { return this._defaultConnection; }
+            get => _defaultConnection;
             set
             {
-                if (!this._connections.ContainsKey("default"))
+                ArgumentNullException.ThrowIfNull(value);
+                
+                if (!_connections.ContainsKey("default"))
+                {
                     throw new UnknownConnection("The default connection does not exist.");
-                this._defaultConnection = value;
+                }
+
+                _defaultConnection = value;
+                _connections["default"] = value;
             }
         }
 
+        // <summary>
+        /// Gets or sets a connection by name (case-insensitive).
+        /// </summary>
         public ConnectionProperties this[string key]
         {
             get
             {
-                if (this._connections.ContainsKey(key))
-                    return (ConnectionProperties)this._connections[key];
-                else
-                    throw new UnknownConnection("Unable to retrieve connection. The provided connection name '" + key +
-                                                "' does not exist.");
+                if (string.IsNullOrEmpty(key))
+                {
+                    throw new UnknownConnection("Connection key/name cannot be empty.");
+                }
+
+                if (!_connections.TryGetValue(key, out var connection))
+                {
+                    throw new UnknownConnection(
+                        $"Unable to retrieve connection. The provided connection name '{key}' does not exist.");
+                }
+
+                return connection;
             }
             set
             {
-                if (!this._connections.ContainsKey(key))
-                    throw new UnknownConnection("Unable to set connection. The provided connection name '" + key +
-                                                "' does not exist.");
-                this._connections[key] = value;
+                ArgumentNullException.ThrowIfNull(value);
+                
+                if (string.IsNullOrEmpty(key))
+                {
+                    throw new UnknownConnection("Connection key/name cannot be empty.");
+                }
+
+                if (!_connections.ContainsKey(key))
+                {
+                    throw new UnknownConnection(
+                        $"Unable to set connection. The provided connection name '{key}' does not exist.");
+                }
+
+                _connections[key] = value;
             }
         }
 
@@ -51,9 +92,15 @@ namespace Database.Connection
         /// <param name="key"/><param name="value"/>
         public void Add(string key, ConnectionProperties value)
         {
-            if (this._connections.ContainsKey(key))
-                throw new ConnectionAlreadyExists("The connection " + key + " already exists.");
-            this._connections.Add(key, value);
+            ArgumentNullException.ThrowIfNull(key);
+            ArgumentNullException.ThrowIfNull(value);
+            
+            if (_connections.ContainsKey(key))
+            {
+                throw new ConnectionAlreadyExists($"The connection '{key}' already exists.");
+            }
+            
+            _connections.Add(key, value);
         }
 
         /// <summary>
@@ -65,9 +112,13 @@ namespace Database.Connection
         /// /// <exception cref="UnknownConnection">Thrown if the system attempts to delete the default connection.</exception>
         public void Remove(string key)
         {
+            ArgumentNullException.ThrowIfNull(key);
+            
             //DO NOT REMOVE DEFAULT CONNECTION. UPDATE IT!!!
-            if (key == "default")
+            if (key.Equals("default", StringComparison.OrdinalIgnoreCase))
+            {
                 throw new DefaultConnectionRemoval();
+            }
 
             this._connections.Remove(key);
         }
@@ -80,9 +131,13 @@ namespace Database.Connection
         /// <exception cref="UnknownConnection">Thrown if the connection does not exist</exception>
         public void Update(string key, ConnectionProperties value)
         {
-            if (!this._connections.ContainsKey(key))
-                throw new UnknownConnection("Unable to update connection. The provided connection name '" + key +
-                                            "' does not exist.");
+            ArgumentNullException.ThrowIfNull(key);
+            ArgumentNullException.ThrowIfNull(value);
+            
+            if (!_connections.ContainsKey(key))
+            {
+                throw new UnknownConnection($"Unable to update connection. The provided connection name '{key}' does not exist.");
+            }
         }
 
         /// <summary>
@@ -90,15 +145,13 @@ namespace Database.Connection
         /// </summary>
         public void Clear()
         {
-            foreach (string key in this._connections.Keys)
+            //Get all items that are NOT the default connection
+            var itemsToRemove = _connections
+                .Where(c => c.Key != "default").ToList();
+            
+            foreach (var item in itemsToRemove)
             {
-                //NEVER remove the default connection.
-                if (key == "default")
-                {
-                    continue;
-                }
-
-                _connections.Remove(key);
+                _connections.Remove(item.Key);
             }
         }
     }

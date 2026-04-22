@@ -8,9 +8,11 @@ namespace Database.Entity
   /// <summary>
   /// Inherit from this to create a custom entity collection
   ///
-  /// No longer used. Will be removed in a later version.
+  /// <strong>Obsolete since 2.0</strong> — use <see cref="EntityCollection{T}"/> instead.
+  /// This class will be removed in a future version.
   /// </summary>
   /// <typeparam name="T"></typeparam>
+  [Obsolete("Use EntityCollection<T> instead. This class will be removed in a future version.", false)]
   public abstract class EntityCollectionBase<T> : IList<T>
   {
     #region Properties
