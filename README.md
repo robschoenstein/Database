@@ -9,6 +9,7 @@ Supports **Microsoft SQL Server** and **PostgreSQL** with first-class entity map
 
 - Strongly-typed entity mapping from `DataTable`/`DataRow` with full attribute support (`[ColumnName]`, `[ChildColumnMap]`, `[InsertParamIgnore]`, `[UpdateParamIgnore]`, `[TVPIgnore]`, etc.)
 - Dynamic/ExpandoObject support for both regular parameters and TVPs
+- FlexObject: Similar to ExpandoObject, but has better thread safety and less overhead. Added to make parameter creation a lot easier.
 - Table-Valued Parameters on SQL Server + JSONb fallback on PostgreSQL (composite array support planned)
 - Full async API (`*Async` methods) with proper resource disposal
 - Reflection caching via `ObjectCache` for maximum performance
@@ -28,7 +29,7 @@ var parameters = employee.ToInsertParameters();
 
 await DataAccess.ExecuteAsync("InsertEmployee", parameters);
 
-// 3. Dynamic usage (when you need it)
+// 3. Dynamic usage (ExpandoObject has a lot of overhead you may not want)
 dynamic data = new ExpandoObject();
 data.companyId = 42;
 data.firstName = "Jane";
@@ -37,6 +38,17 @@ var dynamicParams = new Parameters();
 dynamicParams.AddFromDynamic(data);
 
 await DataAccess.ExecuteAsync("InsertEmployee", dynamicParams);
+
+// 4. FlexObject usage (less overhead ~~~~than ExpandoObject, similar functionality)
+dynamic flexData = new Database.Dynamic.FlexObject();
+flexData.CompanyId = 42;
+flexData.FirstName = "Inclement";
+flexData.LastName = "Death";
+
+var params = new Parameters();
+params.Add(flexData);
+
+await DataAccess.ExecuteAsync("InsertEmployee", params);
 ```
 
 ## Key Types

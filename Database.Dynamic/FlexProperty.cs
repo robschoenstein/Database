@@ -1,7 +1,9 @@
 ﻿namespace Database.Dynamic;
 
-public sealed class DynamicProperty
+public sealed class FlexProperty
 {
+    public static FlexProperty Empty = new FlexProperty(null, null, typeof(object));
+    
     public string Name { get; private set; }
     
     /// <summary>
@@ -14,11 +16,11 @@ public sealed class DynamicProperty
     /// <summary>
     /// Convenience constructor that automatically deduces the type.
     /// </summary>
-    public DynamicProperty(string name, object? value)
+    public FlexProperty(string name, object? value)
         : this(name, value, value?.GetType() ?? typeof(object))
     { }
     
-    public DynamicProperty(string name, object? value, Type type)
+    public FlexProperty(string name, object? value, Type type)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(type);

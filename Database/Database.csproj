@@ -37,5 +37,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Database.Attributes\Database.Attributes.csproj" />
+    <ProjectReference Include="..\Database.Dynamic\Database.Dynamic.csproj" />
   </ItemGroup>
 </Project>

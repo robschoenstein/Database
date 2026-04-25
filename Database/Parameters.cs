@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Database.Attributes;
+using Database.Dynamic;
 using Database.Entity;
 using Database.Enums;
 using Database.Exceptions;
@@ -48,7 +49,7 @@ namespace Database
         public Parameters()
         {
         }
-
+        
         /// <summary>
         /// 
         /// </summary>
@@ -331,6 +332,33 @@ namespace Database
         }
 
         /// <summary>
+        /// Adds all properties from a <see cref="FlexObject"/> to the parameter collection.
+        /// This is the recommended way to pass dynamic data with preserved type information.
+        /// </summary>
+        /// <param name="flexObject">The FlexObject instance.</param>
+        /// <param name="connectionName">Name of connection to utilize. Defaults to "default".</param>
+        /// <returns><c>true</c> if any parameters were added.</returns>
+        public bool Add(FlexObject flexObject, string connectionName = "default")
+        {
+            ArgumentNullException.ThrowIfNull(flexObject);
+
+            if (!Environment.IsInitialized)
+                throw new DataNotInitialized("DataAccess must be initialized first.");
+
+            bool addedAny = false;
+
+            foreach (var prop in flexObject)
+            {
+                var paramName = "@" + prop.Name.LowercaseFirst();
+
+                if (Add(paramName, prop.Value, connectionName))
+                    addedAny = true;
+            }
+
+            return addedAny;
+        }
+        
+        /// <summary>
         /// Adds all properties from a dynamic/ExpandoObject (or IDictionary&lt;string, object&gt;) 
         /// as individual parameters to the collection.
         /// </summary>
@@ -345,28 +373,40 @@ namespace Database
         public bool AddFromDynamic(object dynamicObject, string connectionName = "default")
         {
             if (dynamicObject == null)
+            {
                 throw new ArgumentNullException(nameof(dynamicObject));
+            }
 
             if (!Environment.IsInitialized)
+            {
                 throw new DataNotInitialized("DataAccess must be initialized first.");
+            }
 
             IDictionary<string, object> dict;
 
             if (dynamicObject is IDictionary<string, object> d)
+            {
                 dict = d;
+            }
             else if (dynamicObject is ExpandoObject expando)
+            {
                 dict = expando;
+            }
             else
+            {
                 throw new ArgumentException(
                     "dynamicObject must be an ExpandoObject or IDictionary<string, object>.",
                     nameof(dynamicObject));
+            }
 
             bool addedAny = false;
 
             foreach (var kvp in dict)
             {
                 if (string.IsNullOrEmpty(kvp.Key))
+                {
                     continue;
+                }
 
                 var paramName = "@" + kvp.Key.LowercaseFirst(); // uses the same convention as your extensions
 
