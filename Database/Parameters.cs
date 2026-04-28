@@ -1,16 +1,10 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Dynamic;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Database.Attributes;
 using Database.Dynamic;
 using Database.Entity;
@@ -343,16 +337,25 @@ namespace Database
             ArgumentNullException.ThrowIfNull(flexObject);
 
             if (!Environment.IsInitialized)
+            {
                 throw new DataNotInitialized("DataAccess must be initialized first.");
+            }
 
             bool addedAny = false;
 
             foreach (var prop in flexObject)
             {
+                if (!prop.Type.IsSqlConvertableType())
+                {
+                    throw new ArgumentException($"Property '{prop.Name}' has unsupported type '{prop.Type.Name}' for SQL parameter conversion.");
+                }
+                
                 var paramName = "@" + prop.Name.LowercaseFirst();
 
                 if (Add(paramName, prop.Value, connectionName))
+                {
                     addedAny = true;
+                }
             }
 
             return addedAny;

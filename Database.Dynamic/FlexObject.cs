@@ -1,14 +1,10 @@
 using System.Collections;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Dynamic;
 using System.Linq.Expressions;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using Database.Dynamic;
 using Database.Dynamic.Exceptions;
-using Database.Dynamic.Utils;
 
 namespace Database.Dynamic
 {
@@ -21,7 +17,7 @@ namespace Database.Dynamic
     {
         internal readonly object LockObject = new();
         private readonly List<FlexProperty> _properties = new();
-        private DynamicClass _class = DynamicClass.Empty;
+        private FlexClass _class = FlexClass.Empty;
 
         private PropertyChangedEventHandler? _propertyChanged;
 
@@ -36,7 +32,7 @@ namespace Database.Dynamic
         /// <summary>
         /// Tries to get a property value by name.
         /// </summary>
-        internal bool InternalTryGetValue(string name, out dynamic? value)
+        internal bool InternalTryGetValue(string name, out object? value)
         {
             var prop = _properties.Find(p => 
                 p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -116,13 +112,13 @@ namespace Database.Dynamic
         /// <summary>
         /// Returns the current FlexClass for this object.
         /// </summary>
-        internal DynamicClass Class => _class;
+        internal FlexClass Class => _class;
 
         #endregion
 
         #region Public API (IFlexObject)
 
-        public dynamic? this[string name]
+        public object? this[string name]
         {
             get
             {
@@ -136,14 +132,19 @@ namespace Database.Dynamic
             set => TrySetValue(name, value);
         }
 
-        public void Add(string name, object? value) => 
+        public void Add(string name, object? value)
+        {
             TrySetValue(name, value);
-        public void Add(string name, object? value, Type type) => 
+        }
+
+        public void Add(string name, object? value, Type type)
+        {
             TrySetValue(name, value, type);
+        }
 
         public bool Remove(string name) => TryDeleteValue(name);
 
-        public bool TryGetValue(string name, [MaybeNullWhen(false)] out dynamic? value)
+        public bool TryGetValue(string name, [MaybeNullWhen(false)] out object? value)
         {
             return InternalTryGetValue(name, out value);
         }
@@ -181,7 +182,7 @@ namespace Database.Dynamic
             lock (LockObject)
             {
                 _properties.Clear();
-                _class = DynamicClass.Empty;
+                _class = FlexClass.Empty;
             }
         }
 
@@ -259,29 +260,29 @@ namespace Database.Dynamic
         /// Internal class used to manage dynamic member names and fast lookup.
         /// Similar to ExpandoClass in the .NET runtime.
         /// </summary>
-        internal sealed class DynamicClass
+        internal sealed class FlexClass
         {
             private readonly string[] _names;
             private readonly int _hashCode;
             private Dictionary<int, List<WeakReference>>? _transitions;
 
-            internal static readonly DynamicClass Empty = new();
+            internal static readonly FlexClass Empty = new();
 
             internal string[] Names => _names;
 
-            private DynamicClass()
+            private FlexClass()
             {
                 _names = Array.Empty<string>();
                 _hashCode = 6551;
             }
 
-            internal DynamicClass(string[] names, int hashCode)
+            internal FlexClass(string[] names, int hashCode)
             {
                 _names = names;
                 _hashCode = hashCode;
             }
 
-            internal DynamicClass FindNewClass(string newName)
+            internal FlexClass FindNewClass(string newName)
             {
                 //XOR _hashCode and the hash code of the new name together for new hash code
                 int hashCode = _hashCode ^ newName.GetHashCode();
@@ -298,7 +299,7 @@ namespace Database.Dynamic
 
                     for (int i = 0; i < list.Count; i++)
                     {
-                        if (list[i].Target is DynamicClass klass)
+                        if (list[i].Target is FlexClass klass)
                         {
                             if (string.Equals(klass._names[^1], newName, 
                                     StringComparison.Ordinal))
@@ -317,7 +318,7 @@ namespace Database.Dynamic
                     //Access last item in array and set it to the new name (^1 corresponds to the final item)
                     newNames[^1] = newName;
 
-                    var newClass = new DynamicClass(newNames, hashCode);
+                    var newClass = new FlexClass(newNames, hashCode);
                     list.Add(new WeakReference(newClass));
                     return newClass;
                 }
@@ -367,11 +368,11 @@ namespace Database.Dynamic
         /// <summary>
         /// Holds the actual property values.
         /// </summary>
-        internal sealed class DynamicData
+        internal sealed class FlexData
         {
-            internal static readonly DynamicData Empty = new();
+            internal static readonly FlexData Empty = new();
 
-            internal readonly DynamicClass Class;
+            internal readonly FlexClass Class;
             private readonly object?[] _dataArray;
             private int _version;
 
@@ -388,32 +389,32 @@ namespace Database.Dynamic
             internal int Version => _version;
             internal int Length => _dataArray.Length;
 
-            private DynamicData()
+            private FlexData()
             {
-                Class = DynamicClass.Empty;
+                Class = FlexClass.Empty;
                 _dataArray = Array.Empty<object>();
             }
 
-            internal DynamicData(DynamicClass klass, object?[] data, int version)
+            internal FlexData(FlexClass klass, object?[] data, int version)
             {
                 Class = klass;
                 _dataArray = data;
                 _version = version;
             }
 
-            internal DynamicData UpdateClass(DynamicClass newClass)
+            internal FlexData UpdateClass(FlexClass newClass)
             {
                 if (_dataArray.Length >= newClass.Names.Length)
                 {
                     this[newClass.Names.Length - 1] = FlexObject.Uninitialized;
-                    return new DynamicData(newClass, _dataArray, _version);
+                    return new FlexData(newClass, _dataArray, _version);
                 }
 
                 int oldLength = _dataArray.Length;
                 object?[] arr = new object[GetAlignedSize(newClass.Names.Length)];
                 Array.Copy(_dataArray, arr, oldLength);
 
-                var newData = new DynamicData(newClass, arr, _version);
+                var newData = new FlexData(newClass, arr, _version);
                 newData[oldLength] = FlexObject.Uninitialized;
                 return newData;
             }
@@ -430,11 +431,11 @@ namespace Database.Dynamic
         /// <summary>
         /// Holds the type information for each property.
         /// </summary>
-        internal sealed class DynamicType
+        internal sealed class FlexType
         {
-            internal static readonly DynamicType Empty = new();
+            internal static readonly FlexType Empty = new();
 
-            internal readonly DynamicClass Class;
+            internal readonly FlexClass Class;
             private readonly Type[] _typesArray;
             private int _version;
 
@@ -451,32 +452,32 @@ namespace Database.Dynamic
             internal int Version => _version;
             internal int Length => _typesArray.Length;
 
-            private DynamicType()
+            private FlexType()
             {
-                Class = DynamicClass.Empty;
+                Class = FlexClass.Empty;
                 _typesArray = Array.Empty<Type>();
             }
 
-            internal DynamicType(DynamicClass klass, Type[] types, int version)
+            internal FlexType(FlexClass klass, Type[] types, int version)
             {
                 Class = klass;
                 _typesArray = types;
                 _version = version;
             }
 
-            internal DynamicType UpdateClass(DynamicClass newClass)
+            internal FlexType UpdateClass(FlexClass newClass)
             {
                 if (_typesArray.Length >= newClass.Names.Length)
                 {
                     this[newClass.Names.Length - 1] = typeof(object);
-                    return new DynamicType(newClass, _typesArray, _version);
+                    return new FlexType(newClass, _typesArray, _version);
                 }
 
                 int oldLength = _typesArray.Length;
                 Type[] arr = new Type[GetAlignedSize(newClass.Names.Length)];
                 Array.Copy(_typesArray, arr, oldLength);
 
-                var newType = new DynamicType(newClass, arr, _version);
+                var newType = new FlexType(newClass, arr, _version);
                 newType[oldLength] = typeof(object);
                 return newType;
             }
