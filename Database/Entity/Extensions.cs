@@ -213,7 +213,7 @@ namespace Database.Entity
             return properties
                 .Where(p => !ObjectCache.Instance.HasInsertParamIgnore(p))
                 .ToParameters(
-                    p => $"@{p.Name.LowercaseFirst()}",
+                    p => p.Name.LowercaseFirst(),
                     p => p.GetValue(entity)
                 );
         }
@@ -231,7 +231,7 @@ namespace Database.Entity
             return properties
                 .Where(p => !ObjectCache.Instance.HasUpdateParamIgnore(p))
                 .ToParameters(
-                    p => $"@{p.Name.LowercaseFirst()}",
+                    p => p.Name.LowercaseFirst(),
                     p => p.GetValue(entity)
                 );
         }
@@ -250,7 +250,10 @@ namespace Database.Entity
             
             foreach (TSource element in source)
             {
-                parameters.Add(nameSelector(element).ToString(), valueSelector(element));
+                var name = nameSelector(element);
+                var value = valueSelector(element);
+                
+                parameters.Add(name.ToString().LowercaseFirst(), valueSelector(element));
             }
 
             return parameters;

@@ -631,15 +631,15 @@ namespace Database.Dynamic
             public int Count => _snapshot.Length;
             public bool IsReadOnly => true;
 
-            public IEnumerator<dynamic?> GetEnumerator() => ((IEnumerable<dynamic?>)_snapshot).GetEnumerator();
+            public IEnumerator<object?> GetEnumerator() => ((IEnumerable<object?>)_snapshot).GetEnumerator();
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
             public bool Contains(object? item) => Array.Exists(_snapshot, v => Equals(v, item));
-            public void CopyTo(dynamic?[] array, int arrayIndex) => _snapshot.CopyTo(array, arrayIndex);
+            public void CopyTo(object?[] array, int arrayIndex) => _snapshot.CopyTo(array, arrayIndex);
 
-            public void Add(dynamic? item) => throw new NotSupportedException("Collection is read-only.");
+            public void Add(object? item) => throw new NotSupportedException("Collection is read-only.");
             public void Clear() => throw new NotSupportedException("Collection is read-only.");
-            public bool Remove(dynamic? item) => throw new NotSupportedException("Collection is read-only.");
+            public bool Remove(object? item) => throw new NotSupportedException("Collection is read-only.");
         }
 
         private sealed class TypeCollection : ICollection<Type>

@@ -119,7 +119,12 @@ namespace Database
         /// </returns>
         public bool Add(DbParameter parameter)
         {
-            if (FindParameter(parameter.ParameterName) > 0)
+            if (!Environment.IsInitialized)
+            {
+                throw new DataNotInitialized("The DataAccess class has not been initialized.");
+            }
+            
+            if (FindParameter(parameter.ParameterName) >= 0)
             {
                 return false;
             }
@@ -147,6 +152,8 @@ namespace Database
                 throw new DataNotInitialized("The DataAccess class has not been initialized.");
             }
 
+            parameterName = parameterName.LowercaseFirst();
+            
             if (FindParameter(parameterName) >= 0)
             {
                 return false;
@@ -191,12 +198,14 @@ namespace Database
             {
                 throw new DataNotInitialized("The DataAccess class has not been initialized.");
             }
-
+            
+            parameterName = parameterName.LowercaseFirst();
+            
             if (values?.Any() != true)
             {
                 return false;
             }
-
+            
             var conn = Environment.Connections[connectionName];
 
             //Make sure the typeName contains a schema name. If it doesn't, prepend the default schema name.
@@ -226,6 +235,13 @@ namespace Database
                 throw new DataNotInitialized("The DataAccess class has not been initialized.");
             }
 
+            parameterName = parameterName.LowercaseFirst();
+            
+            if (FindParameter(parameterName) >= 0)
+            {
+                return false;
+            }
+            
             //if the table is null, or it does not contain rows...
             if (table?.Rows.Count == 0)
             {
@@ -288,7 +304,9 @@ namespace Database
                 throw new DataNotInitialized("The DataAccess class has not been initialized.");
             }
 
-            if (FindParameter(parameterName) > 0)
+            parameterName = parameterName.LowercaseFirst();
+            
+            if (FindParameter(parameterName) >= 0)
             {
                 return false;
             }
@@ -350,7 +368,7 @@ namespace Database
                     throw new ArgumentException($"Property '{prop.Name}' has unsupported type '{prop.Type.Name}' for SQL parameter conversion.");
                 }
                 
-                var paramName = "@" + prop.Name.LowercaseFirst();
+                var paramName = prop.Name.LowercaseFirst();
 
                 if (Add(paramName, prop.Value, connectionName))
                 {
@@ -411,7 +429,7 @@ namespace Database
                     continue;
                 }
 
-                var paramName = "@" + kvp.Key.LowercaseFirst(); // uses the same convention as your extensions
+                var paramName = kvp.Key.LowercaseFirst();
 
                 // Reuse existing Add logic (handles MSSQL vs PostgreSQL correctly)
                 if (Add(paramName, kvp.Value, connectionName))
