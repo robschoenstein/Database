@@ -166,12 +166,12 @@ namespace Database
             {
                 case DbServerType.postgresql:
                 {
-                    _parameters.Add(new NpgsqlParameter(parameterName, value));
+                    _parameters.Add(new NpgsqlParameter($"p_{parameterName}", value));
                     break;
                 }
                 case DbServerType.mssql:
                 {
-                    _parameters.Add(new SqlParameter(parameterName, value));
+                    _parameters.Add(new SqlParameter($"@{parameterName}", value));
                     break;
                 }
                 default:
@@ -262,7 +262,7 @@ namespace Database
 
                     var json = JsonSerializer.Serialize(data);
 
-                    var npgsqlParameter = new NpgsqlParameter(parameterName, json)
+                    var npgsqlParameter = new NpgsqlParameter($"p_{parameterName}", json)
                     {
                         NpgsqlDbType = NpgsqlDbType.Jsonb
                     };
@@ -272,7 +272,7 @@ namespace Database
                 }
                 case DbServerType.mssql:
                 {
-                    _parameters.Add(new SqlParameter(parameterName, table)
+                    _parameters.Add(new SqlParameter($"@{parameterName}", table)
                     {
                         SqlDbType = SqlDbType.Structured,
                         TypeName = typeName
@@ -318,7 +318,7 @@ namespace Database
             {
                 case DbServerType.postgresql:
                 {
-                    _parameters.Add(new NpgsqlParameter(parameterName, value)
+                    _parameters.Add(new NpgsqlParameter($"p_{parameterName}", value)
                     {
                         DbType = type
                     });
@@ -327,7 +327,7 @@ namespace Database
                 }
                 case DbServerType.mssql:
                 {
-                    _parameters.Add(new SqlParameter(parameterName, value)
+                    _parameters.Add(new SqlParameter($"@{parameterName}", value)
                     {
                         DbType = type
                     });
@@ -510,7 +510,7 @@ namespace Database
                     //  a stored procedure or function.
                     var json = JsonSerializer.Serialize(values);
 
-                    _parameters.Add(new NpgsqlParameter(parameterName, json)
+                    _parameters.Add(new NpgsqlParameter($"p_{parameterName}", json)
                     {
                         NpgsqlDbType = NpgsqlDbType.Jsonb
                     });
@@ -531,7 +531,7 @@ namespace Database
                         table.Rows.Add(item?.ToString());
                     }
 
-                    _parameters.Add(new SqlParameter(parameterName, table)
+                    _parameters.Add(new SqlParameter($"@{parameterName}", table)
                     {
                         SqlDbType = SqlDbType.Structured,
                         TypeName = typeName
@@ -620,7 +620,7 @@ namespace Database
                 {
                     var json = JsonSerializer.Serialize(values); // perfect for dynamic data
 
-                    _parameters.Add(new NpgsqlParameter(parameterName, json)
+                    _parameters.Add(new NpgsqlParameter($"p_{parameterName}", json)
                     {
                         NpgsqlDbType = NpgsqlDbType.Jsonb
                     });
@@ -660,7 +660,7 @@ namespace Database
                         table.Rows.Add(row);
                     }
 
-                    _parameters.Add(new SqlParameter(parameterName, table)
+                    _parameters.Add(new SqlParameter($"@{parameterName}", table)
                     {
                         SqlDbType = SqlDbType.Structured,
                         TypeName = typeName
@@ -705,7 +705,7 @@ namespace Database
                 {
                     var json = EntityListToJson<T>(values);
 
-                    _parameters.Add(new NpgsqlParameter(parameterName, json)
+                    _parameters.Add(new NpgsqlParameter($"p_{parameterName}", json)
                     {
                         NpgsqlDbType = NpgsqlDbType.Jsonb
                     });
@@ -743,7 +743,7 @@ namespace Database
                         table.Rows.Add(row);
                     }
 
-                    _parameters.Add(new SqlParameter(parameterName, table)
+                    _parameters.Add(new SqlParameter($"@{parameterName}", table)
                     {
                         SqlDbType = SqlDbType.Structured,
                         TypeName = typeName
